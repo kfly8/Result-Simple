@@ -72,4 +72,17 @@ subtest 'Result(T, E) requires `check` method' => sub {
     like $@, qr/Result E requires `check` method/;
 };
 
+sub copy :prototype(;$) :Result(Int, Str) { Ok(42) }
+
+subtest 'subname and prototype are copied from original code' => sub {
+    my $code = \&copy;
+
+    require Sub::Util;
+    my $name = Sub::Util::subname($code);
+    is $name, 'main::copy', 'subname is copied';
+
+    my $proto = Sub::Util::prototype($code);
+    is $proto, ';$', 'prototype is copied';
+};
+
 done_testing;
