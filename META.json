@@ -42,7 +42,11 @@
       },
       "runtime" : {
          "requires" : {
-            "perl" : "5.008001"
+            "Attribute::Handlers" : "0",
+            "Scalar::Util" : "0",
+            "Scope::Upper" : "0",
+            "Sub::Util" : "0",
+            "perl" : "5.014004"
          }
       },
       "test" : {
@@ -52,6 +56,17 @@
       }
    },
    "release_status" : "unstable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/kfly8/Result-Simple/issues"
+      },
+      "homepage" : "https://github.com/kfly8/Result-Simple",
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/kfly8/Result-Simple.git",
+         "web" : "https://github.com/kfly8/Result-Simple"
+      }
+   },
    "version" : "0.01",
    "x_serialization_backend" : "JSON::PP version 4.16",
    "x_static_install" : 1
