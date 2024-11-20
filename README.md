@@ -1,7 +1,7 @@
 [![Actions Status](https://github.com/kfly8/Result-Simple/actions/workflows/test.yml/badge.svg)](https://github.com/kfly8/Result-Simple/actions) [![Coverage Status](https://img.shields.io/coveralls/kfly8/Result-Simple/main.svg?style=flat)](https://coveralls.io/r/kfly8/Result-Simple?branch=main) [![MetaCPAN Release](https://badge.fury.io/pl/Result-Simple.svg)](https://metacpan.org/release/Result-Simple)
 # NAME
 
-Result::Simple - A Rust-style Result type with Perl-ish
+Result::Simple - dead simple perl-ish result type
 
 # SYNOPSIS
 
@@ -27,10 +27,10 @@ sub half :Result(Int, Str) ($n) {
 }
 
 sub parse_and_quater :Result(Int, Str) ($input) {
-    my ($ok, $result) = parse($input);
+    my ($ok, $parsed) = parse($input);
     return Err($result) unless $ok;
 
-    ($ok, $result) = half($result);
+    ($ok, $result) = half($parsed);
     return Err($result) unless $ok;
 
     half($result);
@@ -51,11 +51,11 @@ $result; # 21
 
 # DESCRIPTION
 
-This module provides a simple way to define functions that return a result type like Rust.
+This module provides a simple way to define functions that return a result type. This data type is similar to Go, Rust's Result type.
 
-# EXPORT
+## EXPORT
 
-## Ok
+### Ok
 
 ```
 Ok(@values) : ($ok, @values)
@@ -68,7 +68,7 @@ Can be used in list context:
 my $a = Ok(42); # dies with "Must be called in list context"
 ```
 
-## Err
+### Err
 
 ```
 Err(@values) : ($ok, @values)
@@ -81,9 +81,9 @@ Can be used in list context:
 my $a = Err('error'); # dies with "Must be called in list context"
 ```
 
-# ATTRIBUTES
+## ATTRIBUTES
 
-## :Result(T, E)
+### :Result(T, E)
 
 ```perl
 sub foo :Result(Int, Str) ($input) {
@@ -93,9 +93,15 @@ sub foo :Result(Int, Str) ($input) {
 
 This attribute is used to define a function that returns a result type.
 Type T is the return type when the function is successful, and type E is the return type when the function fails.
-Types must be have a `check` method that returns true or false. So you can use [Types::Standard](https://metacpan.org/pod/Types%3A%3AStandard) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc.
+Types requires `check` method that returns true or false. So you can use [Types::Standard](https://metacpan.org/pod/Types%3A%3AStandard) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc.
 
 If the `RESULT_SIMPLE_CHECK_ENABLED` environment variable is set to a true value, the type check will be enabled.
+
+## ENVIRONMENTS
+
+### RESULT\_SIMPLE\_CHECK\_ENABLED
+
+If this environment variable is set to a true value, the type check will be enabled. Default is false.
 
 # LICENSE
 

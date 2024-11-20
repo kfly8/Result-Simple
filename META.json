@@ -1,5 +1,5 @@
 {
-   "abstract" : "A Rust-style Result type with Perl-ish",
+   "abstract" : "dead simple perl-ish result type",
    "author" : [
       "kobaken <kentafly88@gmail.com>"
    ],

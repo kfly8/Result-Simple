@@ -47,7 +47,6 @@ sub UNIVERSAL::Result : ATTR(CODE) {
     wrap_code($referent, $package, $name, $T, $E);
 }
 
-
 sub wrap_code {
     my ($code, $package, $name, $T, $E) = @_;
 
@@ -102,7 +101,7 @@ __END__
 
 =head1 NAME
 
-Result::Simple - A Rust-style Result type with Perl-ish
+Result::Simple - dead simple perl-ish result type
 
 =head1 SYNOPSIS
 
@@ -127,10 +126,10 @@ Result::Simple - A Rust-style Result type with Perl-ish
     }
 
     sub parse_and_quater :Result(Int, Str) ($input) {
-        my ($ok, $result) = parse($input);
+        my ($ok, $parsed) = parse($input);
         return Err($result) unless $ok;
 
-        ($ok, $result) = half($result);
+        ($ok, $result) = half($parsed);
         return Err($result) unless $ok;
 
         half($result);
@@ -150,11 +149,11 @@ Result::Simple - A Rust-style Result type with Perl-ish
 
 =head1 DESCRIPTION
 
-This module provides a simple way to define functions that return a result type like Rust.
+This module provides a simple way to define functions that return a result type. This data type is similar to Go, Rust's Result type.
 
-=head1 EXPORT
+=head2 EXPORT
 
-=head2 Ok
+=head3 Ok
 
     Ok(@values) : ($ok, @values)
 
@@ -163,7 +162,7 @@ Can be used in list context:
 
     my $a = Ok(42); # dies with "Must be called in list context"
 
-=head2 Err
+=head3 Err
 
     Err(@values) : ($ok, @values)
 
@@ -172,9 +171,9 @@ Can be used in list context:
 
     my $a = Err('error'); # dies with "Must be called in list context"
 
-=head1 ATTRIBUTES
+=head2 ATTRIBUTES
 
-=head2 :Result(T, E)
+=head3 :Result(T, E)
 
     sub foo :Result(Int, Str) ($input) {
         ...
@@ -182,9 +181,15 @@ Can be used in list context:
 
 This attribute is used to define a function that returns a result type.
 Type T is the return type when the function is successful, and type E is the return type when the function fails.
-Types must be have a C<check> method that returns true or false. So you can use L<Types::Standard> or L<Data::Checks> etc.
+Types requires C<check> method that returns true or false. So you can use L<Types::Standard> or L<Data::Checks> etc.
 
 If the C<RESULT_SIMPLE_CHECK_ENABLED> environment variable is set to a true value, the type check will be enabled.
+
+=head2 ENVIRONMENTS
+
+=head3 RESULT_SIMPLE_CHECK_ENABLED
+
+If this environment variable is set to a true value, the type check will be enabled. Default is false.
 
 =head1 LICENSE
 
