@@ -28,7 +28,7 @@ sub half :Result(Int, Str) ($n) {
 
 sub parse_and_quater :Result(Int, Str) ($input) {
     my ($ok, $parsed) = parse($input);
-    return Err($result) unless $ok;
+    return Err($parsed) unless $ok;
 
     ($ok, $result) = half($parsed);
     return Err($result) unless $ok;

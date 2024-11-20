@@ -32,16 +32,16 @@ sub Err {
 sub UNIVERSAL::Result : ATTR(CODE) {
     return unless CHECK_ENABLED;
 
-    my ($package, $symbol, $referent, $attr, $data, $phase, $filename, $linenum) = @_;
+    my ($package, $symbol, $referent, $attr, $data, $phase, $filename, $line) = @_;
     my $name = *{$symbol}{NAME};
 
     my ($T, $E) = @$data;
     unless (Scalar::Util::blessed($T) && $T->can('check')) {
-        croak "Result T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $linenum\n";
+        die "Result T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $line\n";
     }
 
     unless (Scalar::Util::blessed($E) && $E->can('check')) {
-        die "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $linenum\n";
+        die "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
     }
 
     wrap_code($referent, $package, $name, $T, $E);
@@ -127,7 +127,7 @@ Result::Simple - dead simple perl-ish result type
 
     sub parse_and_quater :Result(Int, Str) ($input) {
         my ($ok, $parsed) = parse($input);
-        return Err($result) unless $ok;
+        return Err($parsed) unless $ok;
 
         ($ok, $result) = half($parsed);
         return Err($result) unless $ok;
