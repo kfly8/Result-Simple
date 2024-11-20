@@ -72,7 +72,7 @@ subtest 'Result(T, E) requires `check` method' => sub {
     like $@, qr/Result E requires `check` method/;
 };
 
-sub copy :prototype(;$) :Result(Int, Str) { Ok(42) }
+sub copy (;$) :Result(Int, Str) { Ok(42) }
 
 subtest 'subname and prototype are copied from original code' => sub {
     my $code = \&copy;
