@@ -101,15 +101,89 @@ __END__
 
 =head1 NAME
 
-Result::Simple - It's new $module
+Result::Simple - A Rust-style Result type with Perl-ish
 
 =head1 SYNOPSIS
 
+    use v5.40;
     use Result::Simple;
+    use Types::Standard qw( Int Str );
+
+    sub parse :Result(Int, Str) ($input) {
+        if ($input =~ /\A(\d+)\z/) {
+            Ok($1 + 0);
+        } else {
+            Err('Invalid input');
+        }
+    }
+
+    sub half :Result(Int, Str) ($n) {
+        if ($n % 2 == 0) {
+            Ok($n / 2);
+        } else {
+            Err('Not even');
+        }
+    }
+
+    sub parse_and_quater :Result(Int, Str) ($input) {
+        my ($ok, $result) = parse($input);
+        return Err($result) unless $ok;
+
+        ($ok, $result) = half($result);
+        return Err($result) unless $ok;
+
+        half($result);
+    }
+
+    my ($ok, $result) = parse_and_quater('hello');
+    $ok; # false
+    $result; # 'Invalid input'
+
+    ($ok, $result) = parse_and_quater('42');
+    $ok; # false
+    $result; # 'Not even'
+
+    ($ok, $result) = parse_and_quater('84');
+    $ok; # true
+    $result; # 21
 
 =head1 DESCRIPTION
 
-Result::Simple is ...
+This module provides a simple way to define functions that return a result type like Rust.
+
+=head1 EXPORT
+
+=head2 Ok
+
+    Ok(@values) : ($ok, @values)
+
+Return a tuple of true and values. When the function is successful, it should return this.
+Can be used in list context:
+
+    my $a = Ok(42); # dies with "Must be called in list context"
+
+=head2 Err
+
+    Err(@values) : ($ok, @values)
+
+Return a tuple of false and values. When the function fails, it should return this.
+Can be used in list context:
+
+    my $a = Err('error'); # dies with "Must be called in list context"
+
+=head1 ATTRIBUTES
+
+=head2 :Result(T, E)
+
+    sub foo :Result(Int, Str) ($input) {
+        ...
+    }
+
+This attribute is used to define a function that returns a result type.
+Type T is the return type when the function is successful, and type E is the return type when the function fails.
+Types must be have a C<check> method that returns true or false. So you can use L<Types::Standard> or L<Data::Checks> etc.
+
+If the C<RESULT_SIMPLE_CHECK_ENABLED> environment variable is set to a true value, the type check will be enabled.
 
 =head1 LICENSE
 
