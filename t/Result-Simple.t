@@ -64,4 +64,12 @@ subtest 'Test stacktrace' => sub {
     unlike $@, qr/Result::Simple::/, 'Stacktrace does not include Result::Simple by Scope::Upper';
 };
 
+subtest 'Result(T, E) requires `check` method' => sub {
+    eval "sub invalid_type_T :Result('HELLO', Str) { Ok('HELLO') }";
+    like $@, qr/Result T requires `check` method/;
+
+    eval "sub invalid_type_E :Result(Int, 'WORLD') { Err('WORLD') }";
+    like $@, qr/Result E requires `check` method/;
+};
+
 done_testing;

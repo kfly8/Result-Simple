@@ -32,23 +32,24 @@ sub Err {
 sub UNIVERSAL::Result : ATTR(CODE) {
     return unless CHECK_ENABLED;
 
-    my ($package, $symbol, $referent, $attr, $data) = @_;
+    my ($package, $symbol, $referent, $attr, $data, $phase, $filename, $linenum) = @_;
     my $name = *{$symbol}{NAME};
 
     my ($T, $E) = @$data;
-    wrap_code($referent, $package, $name, $T, $E);
-}
-
-sub wrap_code {
-    my ($code, $package, $name, $T, $E) = @_;
-
     unless (Scalar::Util::blessed($T) && $T->can('check')) {
-        croak "Invalid type object for $name (T)";
+        croak "Result T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $linenum\n";
     }
 
     unless (Scalar::Util::blessed($E) && $E->can('check')) {
-        croak "Invalid type object for $name (E)";
+        die "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $linenum\n";
     }
+
+    wrap_code($referent, $package, $name, $T, $E);
+}
+
+
+sub wrap_code {
+    my ($code, $package, $name, $T, $E) = @_;
 
     my $wrapped = sub {
         croak "Must be called in list context" unless wantarray;
