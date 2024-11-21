@@ -3,7 +3,7 @@ use warnings;
 use Test::More;
 
 use lib "t/lib";
-use TestType qw( Int Str );
+use TestType qw( Int NonEmptyStr );
 
 BEGIN {
     $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
@@ -30,32 +30,35 @@ subtest 'Test `Ok` and `Err` functions' => sub {
         like $@, qr/`Err` must be called in list context/;
     };
 
-    subtest '`Err` requires trusy value' => sub {
+    subtest '`Err` does not allow falsy values' => sub {
         eval { my ($data, $err) = Err() };
-        like $@, qr/Err requires trusy value, got: undef/;
+        like $@, qr/Err does not allow a falsy value: undef/;
 
         eval { my ($data, $err) = Err(0) };
-        like $@, qr/Err requires trusy value, got: 0/;
+        like $@, qr/Err does not allow a falsy value: 0/;
+
+        eval { my ($data, $err) = Err('0') };
+        like $@, qr/Err does not allow a falsy value: '0'/;
 
         eval { my ($data, $err) = Err('') };
-        like $@, qr/Err requires trusy value, got: ""/;
+        like $@, qr/Err does not allow a falsy value: ''/;
     };
 };
 
 subtest 'Test :Result attribute' => sub {
-    sub valid : Result(Int, Str) { Ok(42) }
-    sub invalid_ok_type :Result(Int, Str) { Ok('foo') }
-    sub invalid_err_type :Result(Int, Str) { Err(\1) }
+    sub valid : Result(Int, NonEmptyStr) { Ok(42) }
+    sub invalid_ok_type :Result(Int, NonEmptyStr) { Ok('foo') }
+    sub invalid_err_type :Result(Int, NonEmptyStr) { Err(\1) }
 
-    subtest 'When return value satisfies the Result type (T, E), then return the value' => sub {
+    subtest 'When a return value satisfies the Result type (T, E), then return the value' => sub {
         my ($data, $err) = valid();
         is $data, 42;
         is $err, undef;
     };
 
-    subtest 'When return value does not satisfy the Result type (T, E), then throw a exception' => sub {
+    subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception' => sub {
         eval { my ($data, $err) = invalid_ok_type() };
-        like $@, qr!Invalid data type in `invalid_ok_type`: "foo"!;
+        like $@, qr!Invalid data type in `invalid_ok_type`: 'foo'!;
 
         eval { my ($data, $err) = invalid_err_type() };
         like $@, qr!Invalid error type in `invalid_err_type`: \\1!;
@@ -67,17 +70,22 @@ subtest 'Test :Result attribute' => sub {
     };
 
     subtest 'Result(T, E) requires `check` method' => sub {
-        eval "sub invalid_type_T :Result('HELLO', Str) { Ok('HELLO') }";
+        eval "sub invalid_type_T :Result('HELLO', NonEmptyStr) { Ok('HELLO') }";
         like $@, qr/Result T requires `check` method/;
 
         eval "sub invalid_type_E :Result(Int, 'WORLD') { Err('WORLD') }";
         like $@, qr/Result E requires `check` method/;
     };
+
+    subtest 'E should not allow falsy values' => sub {
+        eval "sub should_not_allow_falsy :Result(Int, Int) { }";
+        like $@, qr/Result E should not allow falsy values: \[0,'0'\]/;
+    };
 };
 
 subtest 'Test the details of :Result attribute' => sub {
     subtest 'Useful stacktrace' => sub {
-        sub test_stacktrace :Result(Int, Str) { Carp::confess('hello') }
+        sub test_stacktrace :Result(Int, NonEmptyStr) { Carp::confess('hello') }
 
         eval { my ($data, $err) = test_stacktrace() };
 
@@ -88,7 +96,7 @@ subtest 'Test the details of :Result attribute' => sub {
     };
 
     subtest 'Same subname and prototype as original' => sub {
-        sub same (;$) :Result(Int, Str) { Ok(42) }
+        sub same (;$) :Result(Int, NonEmptyStr) { Ok(42) }
 
         my $code = \&same;
 

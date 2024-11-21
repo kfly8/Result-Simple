@@ -4,7 +4,7 @@ use warnings;
 
 use Exporter 'import';
 
-our @EXPORT_OK = qw( Int Str );
+our @EXPORT_OK = qw( Int NonEmptyStr );
 
 {
     package TestType::Object;
@@ -20,7 +20,10 @@ our @EXPORT_OK = qw( Int Str );
     }
 }
 
-sub Int() { TestType::Object->new(sub { defined $_[0] && $_[0] =~ /^-?\d+$/ }) }
-sub Str() { TestType::Object->new(sub { defined $_[0] && !ref $_[0] }) }
+sub is_int { defined $_[0] && $_[0] =~ /^-?\d+$/ }
+sub is_non_empty_str { defined $_[0] && !ref $_[0] && length $_[0] > 1 }
+
+sub Int() { TestType::Object->new(\&is_int) }
+sub NonEmptyStr() { TestType::Object->new(\&is_non_empty_str) }
 
 1;

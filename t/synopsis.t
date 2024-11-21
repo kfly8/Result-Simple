@@ -3,11 +3,11 @@ use warnings;
 use Test::More;
 
 use lib "t/lib";
-use TestType qw( Int Str );
+use TestType qw( Int NonEmptyStr );
 
 use Result::Simple;
 
-sub parse :Result(Int, Str) {
+sub parse :Result(Int, NonEmptyStr) {
     my $input = shift;
     if ($input =~ /\A(\d+)\z/) {
         Ok($1 + 0);
@@ -16,7 +16,7 @@ sub parse :Result(Int, Str) {
     }
 }
 
-sub half :Result(Int, Str) {
+sub half :Result(Int, NonEmptyStr) {
     my $n = shift;
     if ($n % 2 == 0) {
         Ok($n / 2);
@@ -25,7 +25,7 @@ sub half :Result(Int, Str) {
     }
 }
 
-sub parse_and_quater :Result(Int, Str) {
+sub parse_and_quater :Result(Int, NonEmptyStr) {
     my $err;
     (my $parsed, $err) = parse(@_);
     return Err($err) if $err;

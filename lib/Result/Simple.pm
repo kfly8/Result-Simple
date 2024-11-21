@@ -16,6 +16,8 @@ use Scalar::Util ();
 
 use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 0;
 
+use constant FALSY_VALUES => [0, '0', '', undef];
+
 sub Ok {
     croak "`Ok` must be called in list context" unless wantarray;
     ($_[0], undef)
@@ -24,7 +26,7 @@ sub Ok {
 sub Err {
     croak "`Err` must be called in list context" unless wantarray;
     unless ($_[0]) {
-        croak "Err requires trusy value, got: @{[ _ddf($_[0]) ]}";
+        croak "Err does not allow a falsy value: @{[ _ddf($_[0]) ]}";
     }
     (undef, $_[0])
 }
@@ -42,6 +44,10 @@ sub UNIVERSAL::Result : ATTR(CODE) {
 
     unless (Scalar::Util::blessed($E) && $E->can('check')) {
         croak "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
+    }
+
+    if (my @f = grep { $E->check($_) } FALSY_VALUES->@*) {
+        croak "Result E should not allow falsy values: @{[ _ddf(\@f) ]} at $filename line $line\n";
     }
 
     wrap_code($referent, $package, $name, $T, $E);
@@ -87,7 +93,7 @@ sub _ddf {
     no warnings 'once';
     require Data::Dumper;
     local $Data::Dumper::Indent   = 0;
-    local $Data::Dumper::Useqq    = 1;
+    local $Data::Dumper::Useqq    = 0;
     local $Data::Dumper::Terse    = 1;
     local $Data::Dumper::Sortkeys = 1;
     local $Data::Dumper::Maxdepth = 2;
@@ -107,9 +113,9 @@ Result::Simple - A dead simple perl-ish result type like Haskell, Rust, Go, etc.
 
     use Test2::V0;
     use Result::Simple;
-    use Types::Standard qw( Int Str );
+    use Types::Common qw( Int NonEmptyStr );
 
-    sub parse :Result(Int, Str) {
+    sub parse :Result(Int, NonEmptyStr) {
         my $input = shift;
         if ($input =~ /\A(\d+)\z/) {
             Ok($1 + 0);
@@ -118,7 +124,7 @@ Result::Simple - A dead simple perl-ish result type like Haskell, Rust, Go, etc.
         }
     }
 
-    sub half :Result(Int, Str) {
+    sub half :Result(Int, NonEmptyStr) {
         my $n = shift;
         if ($n % 2 == 0) {
             Ok($n / 2);
@@ -127,7 +133,7 @@ Result::Simple - A dead simple perl-ish result type like Haskell, Rust, Go, etc.
         }
     }
 
-    sub parse_and_quater :Result(Int, Str) {
+    sub parse_and_quater :Result(Int, NonEmptyStr) {
         my $err;
         (my $parsed, $err) = parse(@_);
         return Err($err) if $err;
@@ -171,13 +177,13 @@ Return a tuple of value and undef. When the function succeeds, it should return 
     Err($err) : (undef, $err)
 
 Return a tuple of undef and error. When the function fails, it should return this.
-If the error is not a trusy value, it will throw an exception.
+Note that the error value should not be a falsy value, otherwise it will throw an exception.
 
 =head2 ATTRIBUTES
 
 =head3 :Result(T, E)
 
-    sub foo :Result(Int, Str) ($input) {
+    sub foo :Result(Int, Error) ($input) {
         Ok('hello');
     }
     # => throw exception: Invalid data type in `foo`: "hello"
@@ -186,10 +192,15 @@ This attribute is used to define a function that returns a success or failure.
 Type T is the return type when the function is successful, and type E is the return type when the function fails.
 
 Types requires C<check> method that returns true or false. So you can use your favorite type constraint module like
-L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc.
+L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc. And type E should not allow falsy values.
+
+    sub foo :Result(Int, Str) ($input) {
+        ...
+    }
+    # => throw exception: Result E should not allow falsy values: ["0"]
 
 If the C<RESULT_SIMPLE_CHECK_ENABLED> environment variable is set to a true value, the type check will be enabled.
-It means that C<:Result> attribute does not do anything when the environment variable is false. It is useful for production code.
+This means that C<:Result> attribute does not do anything when the environment variable is false. It is useful for production code.
 
 =head2 ENVIRONMENTS
 
