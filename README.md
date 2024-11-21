@@ -56,7 +56,7 @@ is $err, 'Not even';
 
 `Result::Simple` is a dead simple perl-ish result type.
 
-Result type is a type constraint that can represent either success or failure. This pattern is used in modern languages such as Haskell, Rust, Go, etc to handle errors and effectively manage the flow of control.
+Result type represents a function's outcome as either success or failure, enabling safer error handling and more effective control flow management. This pattern is common in modern languages like Haskell, Rust, and Go.
 
 In perl, this pattern is also useful. And this module provides a simple way to use it. This module does not wrap return value in an object. Just return a tuple of `(Data, Undef)` or `(Undef, Error)`.
 
