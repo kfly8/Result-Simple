@@ -46,7 +46,7 @@ sub UNIVERSAL::Result : ATTR(CODE) {
         croak "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
     }
 
-    if (my @f = grep { $E->check($_) } FALSY_VALUES->@*) {
+    if (my @f = grep { $E->check($_) } @{ FALSY_VALUES() }) {
         croak "Result E should not allow falsy values: @{[ _ddf(\@f) ]} at $filename line $line\n";
     }
 
