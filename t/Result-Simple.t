@@ -11,78 +11,94 @@ BEGIN {
 
 use Result::Simple;
 
-subtest '`Ok` function returns true and given value' => sub {
-    my ($ok, $result) = Ok('foo');
-    ok $ok, 'Ok returns true';
-    is $result, 'foo';
+subtest 'Test `Ok` and `Err` functions' => sub {
+    subtest '`Ok` and `Err` functions just return values' => sub {
+        my ($data, $err) = Ok('foo');
+        is $data, 'foo';
+        is $err, undef;
+
+        ($data, $err) = Err('bar');
+        is $data, undef;
+        is $err, 'bar';
+    };
+
+    subtest '`Ok` and `Err` must be called in list context' => sub {
+        eval { my $data = Ok('foo') };
+        like $@, qr/`Ok` must be called in list context/;
+
+        eval { my $err = Err('bar') };
+        like $@, qr/`Err` must be called in list context/;
+    };
+
+    subtest '`Err` requires trusy value' => sub {
+        eval { my ($data, $err) = Err() };
+        like $@, qr/Err requires at least trusy value, got: undef/;
+
+        eval { my ($data, $err) = Err(0) };
+        like $@, qr/Err requires at least trusy value, got: 0/;
+
+        eval { my ($data, $err) = Err('') };
+        like $@, qr/Err requires at least trusy value, got: ""/;
+    };
 };
 
-subtest '`Err` function returns false and given value' => sub {
-    my ($ok, $result) = Err('bar');
-    ok !$ok, 'Err returns false';
-    is $result, 'bar';
+subtest 'Test :Result attribute' => sub {
+    sub valid : Result(Int, Str) { Ok(42) }
+    sub invalid_ok_type :Result(Int, Str) { Ok('foo') }
+    sub invalid_err_type :Result(Int, Str) { Err(\1) }
+
+    subtest 'When return value satisfies the Result type (T, E), then return the value' => sub {
+        my ($data, $err) = valid();
+        is $data, 42;
+        is $err, undef;
+    };
+
+    subtest 'When return value does not satisfy the Result type (T, E), then throw a exception' => sub {
+        eval { my ($data, $err) = invalid_ok_type() };
+        like $@, qr!Invalid data type in `invalid_ok_type`: "foo"!;
+
+        eval { my ($data, $err) = invalid_err_type() };
+        like $@, qr!Invalid error type in `invalid_err_type`: \\1!;
+    };
+
+    subtest 'Must handle error' => sub {
+        eval { my $result = valid() };
+        like $@, qr/Must handle error in `valid`/;
+    };
+
+    subtest 'Result(T, E) requires `check` method' => sub {
+        eval "sub invalid_type_T :Result('HELLO', Str) { Ok('HELLO') }";
+        like $@, qr/Result T requires `check` method/;
+
+        eval "sub invalid_type_E :Result(Int, 'WORLD') { Err('WORLD') }";
+        like $@, qr/Result E requires `check` method/;
+    };
 };
 
-sub valid : Result(Int, Str) { Ok(42) }
-sub invalid_ok_type :Result(Int, Str) { Ok('foo') }
-sub invalid_err_type :Result(Int, Str) { Err({ foo => 1 }) }
+subtest 'Test the details of :Result attribute' => sub {
+    subtest 'Useful stacktrace' => sub {
+        sub test_stacktrace :Result(Int, Str) { Carp::confess('hello') }
 
-subtest '`Result` attribute checks the return value' => sub {
-    eval { my ($ok, $result) = valid() };
-    ok !$@, 'No exception is thrown';
+        eval { my ($data, $err) = test_stacktrace() };
 
-    eval { my ($ok, $result) = invalid_ok_type() };
-    like $@, qr!Invalid data type in invalid_ok_type: "foo"!;
+        my $file = __FILE__;
+        like $@, qr!hello at $file line!;
+        like $@, qr/main::test_stacktrace\(\) called at $file line /, 'stacktrace includes function name';
+        unlike $@, qr/Result::Simple::/, 'stacktrace does not include Result::Simple by Scope::Upper';
+    };
 
-    eval { my ($ok, $result) = invalid_err_type() };
-    like $@, qr!Invalid error type in invalid_err_type: \{"foo" => 1\}!;
-};
+    subtest 'Same subname and prototype as original' => sub {
+        sub same (;$) :Result(Int, Str) { Ok(42) }
 
-subtest 'Context must be a list context' => sub {
-    eval { my $result = valid() };
-    like $@, qr/Must be called in list context/, ':Result enforces a list context';
+        my $code = \&same;
 
-    my $foo = sub { my $a = Ok('foo') };
-    eval { $foo->() };
-    like $@, qr/Must be called in list context/, 'Ok enforces a list context';
+        require Sub::Util;
+        my $name = Sub::Util::subname($code);
+        is $name, 'main::same';
 
-    my $bar = sub { my $a = Err('bar') };
-    eval { $bar->() };
-    like $@, qr/Must be called in list context/, 'Err enforces a list context';
-};
-
-sub test_stacktrace :Result(Int, Str) {
-    Carp::confess('hello');
-}
-
-subtest 'Test stacktrace' => sub {
-    eval { my ($ok, $result) = test_stacktrace() };
-
-    my $file = __FILE__;
-    like $@, qr!hello at $file line!;
-    like $@, qr/main::test_stacktrace\(\) called at $file line /, 'Stacktrace includes function name';
-    unlike $@, qr/Result::Simple::/, 'Stacktrace does not include Result::Simple by Scope::Upper';
-};
-
-subtest 'Result(T, E) requires `check` method' => sub {
-    eval "sub invalid_type_T :Result('HELLO', Str) { Ok('HELLO') }";
-    like $@, qr/Result T requires `check` method/;
-
-    eval "sub invalid_type_E :Result(Int, 'WORLD') { Err('WORLD') }";
-    like $@, qr/Result E requires `check` method/;
-};
-
-sub copy (;$) :Result(Int, Str) { Ok(42) }
-
-subtest 'subname and prototype are copied from original code' => sub {
-    my $code = \&copy;
-
-    require Sub::Util;
-    my $name = Sub::Util::subname($code);
-    is $name, 'main::copy', 'subname is copied';
-
-    my $proto = Sub::Util::prototype($code);
-    is $proto, ';$', 'prototype is copied';
+        my $proto = Sub::Util::prototype($code);
+        is $proto, ';$';
+    };
 };
 
 done_testing;

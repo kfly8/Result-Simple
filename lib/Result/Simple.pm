@@ -16,17 +16,17 @@ use Scalar::Util ();
 
 use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 0;
 
-use constant true  => !0;
-use constant false => !1;
-
 sub Ok {
-    croak "Must be called in list context" unless wantarray;
-    (true, @_)
+    croak "`Ok` must be called in list context" unless wantarray;
+    ($_[0], undef)
 }
 
 sub Err {
-    croak "Must be called in list context" unless wantarray;
-    (false, @_)
+    croak "`Err` must be called in list context" unless wantarray;
+    unless ($_[0]) {
+        croak "Err requires at least trusy value, got: @{[ _ddf($_[0]) ]}";
+    }
+    (undef, $_[0])
 }
 
 sub UNIVERSAL::Result : ATTR(CODE) {
@@ -37,11 +37,11 @@ sub UNIVERSAL::Result : ATTR(CODE) {
 
     my ($T, $E) = @$data;
     unless (Scalar::Util::blessed($T) && $T->can('check')) {
-        die "Result T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $line\n";
+        croak "Result T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $line\n";
     }
 
     unless (Scalar::Util::blessed($E) && $E->can('check')) {
-        die "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
+        croak "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
     }
 
     wrap_code($referent, $package, $name, $T, $E);
@@ -51,21 +51,21 @@ sub wrap_code {
     my ($code, $package, $name, $T, $E) = @_;
 
     my $wrapped = sub {
-        croak "Must be called in list context" unless wantarray;
+        croak "Must handle error in `$name`" unless wantarray;
 
-        my ($ok, $result) = &Scope::Upper::uplevel($code, @_, &Scope::Upper::CALLER(0));
+        my ($data, $err) = &Scope::Upper::uplevel($code, @_, &Scope::Upper::CALLER(0));
 
-        if ($ok) {
-            unless ($T->check($result)) {
-                croak "Invalid data type in $name: ", _ddf($result);
+        if ($err) {
+            unless ($E->check($err)) {
+                croak "Invalid error type in `$name`: ", _ddf($err);
             }
         } else {
-            unless ($E->check($result)) {
-                croak "Invalid error type in $name: ", _ddf($result);
+            unless ($T->check($data)) {
+                croak "Invalid data type in `$name`: ", _ddf($data);
             }
         }
 
-        ($ok, $result);
+        ($data, $err);
     };
 
     my $fullname = "$package\::$name";
@@ -101,15 +101,16 @@ __END__
 
 =head1 NAME
 
-Result::Simple - dead simple perl-ish result type
+Result::Simple - A dead simple perl-ish result type like Haskell, Rust, Go, etc.
 
 =head1 SYNOPSIS
 
-    use v5.40;
+    use Test2::V0;
     use Result::Simple;
     use Types::Standard qw( Int Str );
 
-    sub parse :Result(Int, Str) ($input) {
+    sub parse :Result(Int, Str) {
+        my $input = shift;
         if ($input =~ /\A(\d+)\z/) {
             Ok($1 + 0);
         } else {
@@ -117,7 +118,8 @@ Result::Simple - dead simple perl-ish result type
         }
     }
 
-    sub half :Result(Int, Str) ($n) {
+    sub half :Result(Int, Str) {
+        my $n = shift;
         if ($n % 2 == 0) {
             Ok($n / 2);
         } else {
@@ -125,65 +127,69 @@ Result::Simple - dead simple perl-ish result type
         }
     }
 
-    sub parse_and_quater :Result(Int, Str) ($input) {
-        my ($ok, $parsed) = parse($input);
-        return Err($parsed) unless $ok;
+    sub parse_and_quater :Result(Int, Str) {
+        my $err;
+        (my $parsed, $err) = parse(@_);
+        return Err($err) if $err;
 
-        ($ok, $result) = half($parsed);
-        return Err($result) unless $ok;
+        (my $halved, $err) = half($parsed);
+        return Err($err) if $err;
 
-        half($result);
+        half($halved);
     }
 
-    my ($ok, $result) = parse_and_quater('hello');
-    $ok; # false
-    $result; # 'Invalid input'
+    my ($data, $err) = parse_and_quater('84');
+    is $data, 21;
+    is $err, undef;
 
-    ($ok, $result) = parse_and_quater('42');
-    $ok; # false
-    $result; # 'Not even'
+    ($data, $err) = parse_and_quater('hello');
+    is $data, undef;
+    is $err, 'Invalid input';
 
-    ($ok, $result) = parse_and_quater('84');
-    $ok; # true
-    $result; # 21
+    ($data, $err) = parse_and_quater('42');
+    is $data, undef;
+    is $err, 'Not even';
 
 =head1 DESCRIPTION
 
-This module provides a simple way to define functions that return a result type. This data type is similar to Go, Rust's Result type.
+C<Result::Simple> is a dead simple perl-ish result type.
+
+Result type is a type constraint that can represent either success or failure. This pattern is used in modern languages such as Haskell, Rust, Go, etc to handle errors and effectively manage the flow of control.
+
+In perl, this pattern is also useful. And this module provides a simple way to use it. This module does not wrap return value in an object. Just return a tuple of C<(Data, Undef)> or C<(Undef, Error)>.
 
 =head2 EXPORT
 
 =head3 Ok
 
-    Ok(@values) : ($ok, @values)
+    Ok($value) : ($value, undef)
 
-Return a tuple of true and values. When the function is successful, it should return this.
-Can be used in list context:
-
-    my $a = Ok(42); # dies with "Must be called in list context"
+Return a tuple of values and undef. When the function succeeds, it should return this.
 
 =head3 Err
 
-    Err(@values) : ($ok, @values)
+    Err($err) : (undef, $err)
 
-Return a tuple of false and values. When the function fails, it should return this.
-Can be used in list context:
-
-    my $a = Err('error'); # dies with "Must be called in list context"
+Return a tuple of undef and error. When the function fails, it should return this.
+If the error is not a trusy value, it will throw an exception.
 
 =head2 ATTRIBUTES
 
 =head3 :Result(T, E)
 
     sub foo :Result(Int, Str) ($input) {
-        ...
+        Ok('hello');
     }
+    # => throw exception: Invalid data type in `foo`: "hello"
 
-This attribute is used to define a function that returns a result type.
+This attribute is used to define a function that returns a success or failure.
 Type T is the return type when the function is successful, and type E is the return type when the function fails.
-Types requires C<check> method that returns true or false. So you can use L<Types::Standard> or L<Data::Checks> etc.
+
+Types requires C<check> method that returns true or false. So you can use your favorite type constraint module like
+L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc.
 
 If the C<RESULT_SIMPLE_CHECK_ENABLED> environment variable is set to a true value, the type check will be enabled.
+It means that C<:Result> attribute does not do anything when the environment variable is false. It is useful for production code.
 
 =head2 ENVIRONMENTS
 

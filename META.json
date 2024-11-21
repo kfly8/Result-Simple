@@ -1,5 +1,5 @@
 {
-   "abstract" : "dead simple perl-ish result type",
+   "abstract" : "A dead simple perl-ish result type like Haskell, Rust, Go, etc.",
    "author" : [
       "kobaken <kentafly88@gmail.com>"
    ],
@@ -46,7 +46,7 @@
             "Scalar::Util" : "0",
             "Scope::Upper" : "0",
             "Sub::Util" : "0",
-            "perl" : "v5.40.0"
+            "perl" : "5.014004"
          }
       },
       "test" : {

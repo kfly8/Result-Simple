@@ -26,25 +26,26 @@ sub half :Result(Int, Str) {
 }
 
 sub parse_and_quater :Result(Int, Str) {
-    my ($ok, $result) = parse(@_);
-    return Err($result) unless $ok;
+    my $err;
+    (my $parsed, $err) = parse(@_);
+    return Err($err) if $err;
 
-    ($ok, $result) = half($result);
-    return Err($result) unless $ok;
+    (my $halved, $err) = half($parsed);
+    return Err($err) if $err;
 
-    half($result);
+    half($halved);
 }
 
-my ($ok, $result) = parse_and_quater('84');
-ok $ok;
-is $result, 21;
+my ($data, $err) = parse_and_quater('84');
+is $data, 21;
+is $err, undef;
 
-($ok, $result) = parse_and_quater('hello');
-ok !$ok;
-is $result, 'Invalid input';
+($data, $err) = parse_and_quater('hello');
+is $data, undef;
+is $err, 'Invalid input';
 
-($ok, $result) = parse_and_quater('42');
-ok !$ok;
-is $result, 'Not even';
+($data, $err) = parse_and_quater('42');
+is $data, undef;
+is $err, 'Not even';
 
 done_testing
