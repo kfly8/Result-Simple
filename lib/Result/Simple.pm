@@ -19,14 +19,18 @@ use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 0;
 use constant FALSY_VALUES => [0, '0', '', undef];
 
 sub Ok {
-    croak "`Ok` must be called in list context" unless wantarray;
+    if (CHECK_ENABLED) {
+        croak "`Ok` must be called in list context" unless wantarray;
+    }
     ($_[0], undef)
 }
 
 sub Err {
-    croak "`Err` must be called in list context" unless wantarray;
-    unless ($_[0]) {
-        croak "Err does not allow a falsy value: @{[ _ddf($_[0]) ]}";
+    if (CHECK_ENABLED) {
+        croak "`Err` must be called in list context" unless wantarray;
+        unless ($_[0]) {
+            croak "Err does not allow a falsy value: @{[ _ddf($_[0]) ]}";
+        }
     }
     (undef, $_[0])
 }

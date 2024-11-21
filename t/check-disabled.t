@@ -1,6 +1,7 @@
 =pod
 
-Test the Result::Simple module with CHECK_ENABLED is truthy.
+Test the Result::Simple module with CHECK_ENABLED is falsy.
+These tests are same cases as Result-Simple.t, but CHECK_ENABLED is falsy.
 
 =cut
 
@@ -12,7 +13,8 @@ use lib "t/lib";
 use TestType qw( Int NonEmptyStr );
 
 BEGIN {
-    $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
+    # Default is falsy
+    # $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 0;
 }
 
 use Result::Simple;
@@ -28,26 +30,26 @@ subtest 'Test `Ok` and `Err` functions' => sub {
         is $err, 'bar';
     };
 
-    subtest '`Ok` and `Err` must be called in list context' => sub {
+    subtest '`Ok` and `Err` must be called in list context, but when CHECK_ENABLED is falsy, then do not throw exception' => sub {
         eval { my $data = Ok('foo') };
-        like $@, qr/`Ok` must be called in list context/;
+        is $@, '';
 
         eval { my $err = Err('bar') };
-        like $@, qr/`Err` must be called in list context/;
+        is $@, '';
     };
 
-    subtest '`Err` does not allow falsy values' => sub {
+    subtest '`Err` does not allow falsy values, but when CHECK_ENABLED is falsy, then do not throw exception' => sub {
         eval { my ($data, $err) = Err() };
-        like $@, qr/Err does not allow a falsy value: undef/;
+        is $@, '';
 
         eval { my ($data, $err) = Err(0) };
-        like $@, qr/Err does not allow a falsy value: 0/;
+        is $@, '';
 
         eval { my ($data, $err) = Err('0') };
-        like $@, qr/Err does not allow a falsy value: '0'/;
+        is $@, '';
 
         eval { my ($data, $err) = Err('') };
-        like $@, qr/Err does not allow a falsy value: ''/;
+        is $@, '';
     };
 };
 
@@ -62,34 +64,37 @@ subtest 'Test :Result attribute' => sub {
         is $err, undef;
     };
 
-    subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception' => sub {
+    subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception, but CHECK_ENABLED is falsy, then do not' => sub {
+
         eval { my ($data, $err) = invalid_ok_type() };
-        like $@, qr!Invalid data type in `invalid_ok_type`: 'foo'!;
+        is $@, '';
 
         eval { my ($data, $err) = invalid_err_type() };
-        like $@, qr!Invalid error type in `invalid_err_type`: \\1!;
+        is $@, '';
     };
 
-    subtest 'Must handle error' => sub {
+    subtest 'Must handle error, but CHECK_ENABLED is falsy, then do not throw exception' => sub {
         eval { my $result = valid() };
-        like $@, qr/Must handle error in `valid`/;
+        is $@, '';
     };
 
-    subtest 'Result(T, E) requires `check` method' => sub {
+    subtest 'Result(T, E) requires `check` method, but CHECK_ENABLED is falsy, then do not throw exception' => sub {
         eval "sub invalid_type_T :Result('HELLO', NonEmptyStr) { Ok('HELLO') }";
-        like $@, qr/Result T requires `check` method/;
+        is $@, '';
 
         eval "sub invalid_type_E :Result(Int, 'WORLD') { Err('WORLD') }";
-        like $@, qr/Result E requires `check` method/;
+        is $@, '';
     };
 
-    subtest 'E should not allow falsy values' => sub {
+    subtest 'E should not allow falsy values, but CHECK_ENABLED is falsy, then do not throw exception' => sub {
         eval "sub should_not_allow_falsy :Result(Int, Int) { }";
-        like $@, qr/Result E should not allow falsy values: \[0,'0'\]/;
+        is $@, '';
     };
 };
 
 subtest 'Test the details of :Result attribute' => sub {
+    note 'When CHECK_ENABLED is falsy, then do not wrap the original function';
+
     subtest 'Useful stacktrace' => sub {
         sub test_stacktrace :Result(Int, NonEmptyStr) { Carp::confess('hello') }
 
