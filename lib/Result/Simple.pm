@@ -14,10 +14,14 @@ use Scope::Upper ();
 use Sub::Util ();
 use Scalar::Util ();
 
+# If this option is true, then check `Ok` and `Err` functions usage and check a return value type.
+# However it should be falsy for production code, because of performance and it is an assertion, not a validation.
 use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 0;
 
+# Err does not allow these values.
 use constant FALSY_VALUES => [0, '0', '', undef];
 
+# When the function is successful, it should return this.
 sub Ok {
     if (CHECK_ENABLED) {
         croak "`Ok` must be called in list context" unless wantarray;
@@ -25,6 +29,7 @@ sub Ok {
     ($_[0], undef)
 }
 
+# When the function fails, it should return this.
 sub Err {
     if (CHECK_ENABLED) {
         croak "`Err` must be called in list context" unless wantarray;
@@ -35,6 +40,8 @@ sub Err {
     (undef, $_[0])
 }
 
+# This attribute is used to define a function that returns a success or failure.
+# Example: `sub foo :Result(Int, Error)  { ... }`
 sub UNIVERSAL::Result : ATTR(CODE) {
     return unless CHECK_ENABLED;
 
@@ -57,6 +64,7 @@ sub UNIVERSAL::Result : ATTR(CODE) {
     wrap_code($referent, $package, $name, $T, $E);
 }
 
+# Wrap the original coderef with type check.
 sub wrap_code {
     my ($code, $package, $name, $T, $E) = @_;
 
@@ -91,6 +99,7 @@ sub wrap_code {
     *{$fullname} = $wrapped;
 }
 
+# Dump data for debugging.
 sub _ddf {
     my $v = shift;
 
