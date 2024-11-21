@@ -32,13 +32,13 @@ subtest 'Test `Ok` and `Err` functions' => sub {
 
     subtest '`Err` requires trusy value' => sub {
         eval { my ($data, $err) = Err() };
-        like $@, qr/Err requires at least trusy value, got: undef/;
+        like $@, qr/Err requires trusy value, got: undef/;
 
         eval { my ($data, $err) = Err(0) };
-        like $@, qr/Err requires at least trusy value, got: 0/;
+        like $@, qr/Err requires trusy value, got: 0/;
 
         eval { my ($data, $err) = Err('') };
-        like $@, qr/Err requires at least trusy value, got: ""/;
+        like $@, qr/Err requires trusy value, got: ""/;
     };
 };
 

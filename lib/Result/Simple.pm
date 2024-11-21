@@ -24,7 +24,7 @@ sub Ok {
 sub Err {
     croak "`Err` must be called in list context" unless wantarray;
     unless ($_[0]) {
-        croak "Err requires at least trusy value, got: @{[ _ddf($_[0]) ]}";
+        croak "Err requires trusy value, got: @{[ _ddf($_[0]) ]}";
     }
     (undef, $_[0])
 }
