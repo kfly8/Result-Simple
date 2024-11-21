@@ -33,9 +33,7 @@ sub Ok {
 sub Err {
     if (CHECK_ENABLED) {
         croak "`Err` must be called in list context" unless wantarray;
-        unless ($_[0]) {
-            croak "Err does not allow a falsy value: @{[ _ddf($_[0]) ]}";
-        }
+        croak "`Err` does not allow a falsy value: @{[ _ddf($_[0]) ]}" unless $_[0];
     }
     (undef, $_[0])
 }
