@@ -20,7 +20,7 @@ our @EXPORT_OK = qw( Int Str );
     }
 }
 
-sub Int() { TestType::Object->new(sub { $_[0] =~ /^-?\d+$/ }) }
+sub Int() { TestType::Object->new(sub { defined $_[0] && $_[0] =~ /^-?\d+$/ }) }
 sub Str() { TestType::Object->new(sub { defined $_[0] && !ref $_[0] }) }
 
 1;

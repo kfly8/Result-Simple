@@ -60,15 +60,15 @@ Result type is a type constraint that can represent either success or failure. T
 
 In perl, this pattern is also useful. And this module provides a simple way to use it. This module does not wrap return value in an object. Just return a tuple of `(Data, Undef)` or `(Undef, Error)`.
 
-## EXPORT
+## EXPORT FUNCTIONS
 
 ### Ok
 
 ```
-Ok($value) : ($value, undef)
+Ok($data) : ($data, undef)
 ```
 
-Return a tuple of values and undef. When the function succeeds, it should return this.
+Return a tuple of value and undef. When the function succeeds, it should return this.
 
 ### Err
 
@@ -101,9 +101,15 @@ It means that `:Result` attribute does not do anything when the environment vari
 
 ## ENVIRONMENTS
 
-### RESULT\_SIMPLE\_CHECK\_ENABLED
+### `$ENV{RESULT_SIMPLE_CHECK_ENABLED}`
 
 If this environment variable is set to a true value, the type check will be enabled. Default is false.
+
+```
+BEGIN {
+    $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
+}
+```
 
 # LICENSE
 
