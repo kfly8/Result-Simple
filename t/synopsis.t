@@ -1,15 +1,18 @@
 use Test2::V0;
 use Test2::Require::Module 'Type::Tiny' => '2.000000';
+use Test2::Require::Module 'kura';
 
-BEGIN {
-    $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
-}
+# Enable type check. Default is false.
+BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
 
 use Result::Simple;
 use Types::Common -types;
 
-use constant ErrorMessage => NonEmptyStr;
-use constant ValidUser => Dict[name => Str, age => Int];
+use kura ErrorMessage => NonEmptyStr;
+
+use kura ValidName => sub { my (undef, $e) = validate_name($_); !$e };
+use kura ValidAge  => sub { my (undef, $e) = validate_age($_); !$e };
+use kura ValidUser => Dict[name => ValidName, age => ValidAge];
 
 sub validate_name {
     my $name = shift;
@@ -23,7 +26,7 @@ sub validate_age {
     my $age = shift;
     return Err('No age') unless defined $age;
     return Err('Invalid age') unless $age =~ /\A\d+\z/;
-    return Err('Too young') if $age < 18;
+    return Err('Too young age') if $age < 18;
     return Ok($age);
 }
 
@@ -45,8 +48,8 @@ my ($user1, $err1) = new_user({ name => 'taro', age => 42 });
 is $user1, { name => 'taro', age => 42 };
 is $err1, undef;
 
-my ($user2, $err2) = new_user({ name => 'root', age => 42 });
+my ($user2, $err2) = new_user({ name => 'root', age => 1 });
 is $user2, undef;
-is $err2, ['Reserved name'];
+is $err2, ['Reserved name', 'Too young age'];
 
 done_testing

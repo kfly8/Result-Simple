@@ -6,11 +6,18 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 # SYNOPSIS
 
 ```perl
+# Enable type check. Default is false.
+BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
+
+use Test2::V0;
 use Result::Simple;
 use Types::Common -types;
 
-use constant ErrorMessage => NonEmptyStr;
-use constant ValidUser => Dict[name => Str, age => Int];
+use kura ErrorMessage => NonEmptyStr;
+
+use kura ValidName => sub { my (undef, $e) = validate_name($_); !$e };
+use kura ValidAge  => sub { my (undef, $e) = validate_age($_); !$e };
+use kura ValidUser => Dict[name => ValidName, age => ValidAge];
 
 sub validate_name {
     my $name = shift;
@@ -24,7 +31,7 @@ sub validate_age {
     my $age = shift;
     return Err('No age') unless defined $age;
     return Err('Invalid age') unless $age =~ /\A\d+\z/;
-    return Err('Too young') if $age < 18;
+    return Err('Too young age') if $age < 18;
     return Ok($age);
 }
 
@@ -43,21 +50,21 @@ sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
 }
 
 my ($user1, $err1) = new_user({ name => 'taro', age => 42 });
-$user1 # => { name => 'taro', age => 42 };
-$err1  # => undef;
+is $user1, { name => 'taro', age => 42 };
+is $err1, undef;
 
 my ($user2, $err2) = new_user({ name => 'root', age => 1 });
-$user2 # => undef;
-$err2  # => ['Reserved name', 'Too young'];
+is $user2, undef;
+is $err2, ['Reserved name', 'Too young age'];
 ```
 
 # DESCRIPTION
 
-Result::Simple is a dead simple perl-ish Result.
+Result::Simple is a dead simple Perl-ish Result.
 
-Result represents a function's outcome as either success or failure, enabling safer error handling and more effective control flow management. This pattern is used in other languages such as F#, Rust, and Go.
+Results represent a function's return value as success or failure, enabling safer error handling and more effective control flow management. This pattern is used in other languages such as F#, Rust, and Go.
 
-In perl, this pattern is also useful. And this module provides a simple way to use it. This module does not wrap return value in an object. Just return a tuple of `(Data, Undef)` or `(Undef, Error)`.
+In Perl, this pattern is also useful, and this module provides a simple way to use it. This module does not wrap a return value in an object. Just return a tuple like `($data, undef)` or `(undef, $err)`.
 
 ## EXPORT FUNCTIONS
 
