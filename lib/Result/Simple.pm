@@ -6,7 +6,7 @@ our $VERSION = "0.01";
 
 use Exporter 'import';
 
-our @EXPORT = qw( Ok Err );
+our @EXPORT = qw( Ok Err _ATTR_CODE_Result );
 
 use Carp;
 use Attribute::Handlers;
@@ -40,7 +40,7 @@ sub Err {
 
 # This attribute is used to define a function that returns a success or failure.
 # Example: `sub foo :Result(Int, Error)  { ... }`
-sub UNIVERSAL::Result : ATTR(CODE) {
+sub Result : ATTR(CODE) {
     return unless CHECK_ENABLED;
 
     my ($package, $symbol, $referent, $attr, $data, $phase, $filename, $line) = @_;
