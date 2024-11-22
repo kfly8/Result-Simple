@@ -5,9 +5,7 @@ These tests are same cases as Result-Simple.t, but CHECK_ENABLED is falsy.
 
 =cut
 
-use strict;
-use warnings;
-use Test::More;
+use Test2::V0;
 
 use lib "t/lib";
 use TestType qw( Int NonEmptyStr );
@@ -31,25 +29,15 @@ subtest 'Test `Ok` and `Err` functions' => sub {
     };
 
     subtest '`Ok` and `Err` must be called in list context, but when CHECK_ENABLED is falsy, then do not throw exception' => sub {
-        eval { my $data = Ok('foo') };
-        is $@, '';
-
-        eval { my $err = Err('bar') };
-        is $@, '';
+        ok lives { my $data = Ok('foo') };
+        ok lives { my $err = Err('bar') };
     };
 
     subtest '`Err` does not allow falsy values, but when CHECK_ENABLED is falsy, then do not throw exception' => sub {
-        eval { my ($data, $err) = Err() };
-        is $@, '';
-
-        eval { my ($data, $err) = Err(0) };
-        is $@, '';
-
-        eval { my ($data, $err) = Err('0') };
-        is $@, '';
-
-        eval { my ($data, $err) = Err('') };
-        is $@, '';
+        ok lives { my ($data, $err) = Err() };
+        ok lives { my ($data, $err) = Err(0) };
+        ok lives { my ($data, $err) = Err('0') };
+        ok lives { my ($data, $err) = Err('') };
     };
 };
 
@@ -65,17 +53,12 @@ subtest 'Test :Result attribute' => sub {
     };
 
     subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception, but CHECK_ENABLED is falsy, then do not' => sub {
-
-        eval { my ($data, $err) = invalid_ok_type() };
-        is $@, '';
-
-        eval { my ($data, $err) = invalid_err_type() };
-        is $@, '';
+        ok lives { my ($data, $err) = invalid_ok_type() };
+        ok lives { my ($data, $err) = invalid_err_type() };
     };
 
     subtest 'Must handle error, but CHECK_ENABLED is falsy, then do not throw exception' => sub {
-        eval { my $result = valid() };
-        is $@, '';
+        ok lives { my $result = valid() };
     };
 
     subtest 'Result(T, E) requires `check` method, but CHECK_ENABLED is falsy, then do not throw exception' => sub {

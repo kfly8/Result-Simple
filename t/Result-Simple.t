@@ -4,9 +4,7 @@ Test the Result::Simple module with CHECK_ENABLED is truthy.
 
 =cut
 
-use strict;
-use warnings;
-use Test::More;
+use Test2::V0;
 
 use lib "t/lib";
 use TestType qw( Int NonEmptyStr );
@@ -29,25 +27,15 @@ subtest 'Test `Ok` and `Err` functions' => sub {
     };
 
     subtest '`Ok` and `Err` must be called in list context' => sub {
-        eval { my $data = Ok('foo') };
-        like $@, qr/`Ok` must be called in list context/;
-
-        eval { my $err = Err('bar') };
-        like $@, qr/`Err` must be called in list context/;
+        like dies { my $data = Ok('foo') }, qr/`Ok` must be called in list context/;
+        like dies { my $err = Err('bar') }, qr/`Err` must be called in list context/;
     };
 
     subtest '`Err` does not allow falsy values' => sub {
-        eval { my ($data, $err) = Err() };
-        like $@, qr/`Err` does not allow a falsy value: undef/;
-
-        eval { my ($data, $err) = Err(0) };
-        like $@, qr/`Err` does not allow a falsy value: 0/;
-
-        eval { my ($data, $err) = Err('0') };
-        like $@, qr/`Err` does not allow a falsy value: '0'/;
-
-        eval { my ($data, $err) = Err('') };
-        like $@, qr/`Err` does not allow a falsy value: ''/;
+        like dies { my ($data, $err) = Err() }, qr/`Err` does not allow a falsy value: undef/;
+        like dies { my ($data, $err) = Err(0) }, qr/`Err` does not allow a falsy value: 0/;
+        like dies { my ($data, $err) = Err('0') }, qr/`Err` does not allow a falsy value: '0'/;
+        like dies { my ($data, $err) = Err('') }, qr/`Err` does not allow a falsy value: ''/;
     };
 };
 
@@ -63,16 +51,12 @@ subtest 'Test :Result attribute' => sub {
     };
 
     subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception' => sub {
-        eval { my ($data, $err) = invalid_ok_type() };
-        like $@, qr!Invalid data type in `invalid_ok_type`: 'foo'!;
-
-        eval { my ($data, $err) = invalid_err_type() };
-        like $@, qr!Invalid error type in `invalid_err_type`: \\1!;
+        like dies { my ($data, $err) = invalid_ok_type() }, qr!Invalid data type in `invalid_ok_type`: 'foo'!;
+        like dies { my ($data, $err) = invalid_err_type() }, qr!Invalid error type in `invalid_err_type`: \\1!;
     };
 
     subtest 'Must handle error' => sub {
-        eval { my $result = valid() };
-        like $@, qr/Must handle error in `valid`/;
+        like dies { my $result = valid() }, qr/Must handle error in `valid`/;
     };
 
     subtest 'Result(T, E) requires `check` method' => sub {
