@@ -1,62 +1,61 @@
 [![Actions Status](https://github.com/kfly8/Result-Simple/actions/workflows/test.yml/badge.svg)](https://github.com/kfly8/Result-Simple/actions) [![Coverage Status](https://img.shields.io/coveralls/kfly8/Result-Simple/main.svg?style=flat)](https://coveralls.io/r/kfly8/Result-Simple?branch=main) [![MetaCPAN Release](https://badge.fury.io/pl/Result-Simple.svg)](https://metacpan.org/release/Result-Simple)
 # NAME
 
-Result::Simple - A dead simple perl-ish result type like Haskell, Rust, Go, etc.
+Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 
 # SYNOPSIS
 
 ```perl
-use Test2::V0;
 use Result::Simple;
-use Types::Common qw( Int NonEmptyStr );
+use Types::Common -types;
 
-sub parse :Result(Int, NonEmptyStr) {
-    my $input = shift;
-    if ($input =~ /\A(\d+)\z/) {
-        Ok($1 + 0);
-    } else {
-        Err('Invalid input');
-    }
+use constant ErrorMessage => NonEmptyStr;
+use constant ValidUser => Dict[name => Str, age => Int];
+
+sub validate_name {
+    my $name = shift;
+    return Err('No name') unless defined $name;
+    return Err('Empty name') unless length $name;
+    return Err('Reserved name') if $name eq 'root';
+    return Ok($name);
 }
 
-sub half :Result(Int, NonEmptyStr) {
-    my $n = shift;
-    if ($n % 2 == 0) {
-        Ok($n / 2);
-    } else {
-        Err('Not even');
-    }
+sub validate_age {
+    my $age = shift;
+    return Err('No age') unless defined $age;
+    return Err('Invalid age') unless $age =~ /\A\d+\z/;
+    return Err('Too young') if $age < 18;
+    return Ok($age);
 }
 
-sub parse_and_quater :Result(Int, NonEmptyStr) {
-    my $err;
-    (my $parsed, $err) = parse(@_);
-    return Err($err) if $err;
+sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
+    my $args = shift;
+    my @errors;
 
-    (my $halved, $err) = half($parsed);
-    return Err($err) if $err;
+    my ($name, $name_err) = validate_name($args->{name});
+    push @errors, $name_err if $name_err;
 
-    half($halved);
+    my ($age, $age_err) = validate_age($args->{age});
+    push @errors, $age_err if $age_err;
+
+    return Err(\@errors) if @errors;
+    return Ok({ name => $name, age => $age });
 }
 
-my ($data, $err) = parse_and_quater('84');
-is $data, 21;
-is $err, undef;
+my ($user1, $err1) = new_user({ name => 'taro', age => 42 });
+$user1 # => { name => 'taro', age => 42 };
+$err1  # => undef;
 
-($data, $err) = parse_and_quater('hello');
-is $data, undef;
-is $err, 'Invalid input';
-
-($data, $err) = parse_and_quater('42');
-is $data, undef;
-is $err, 'Not even';
+my ($user2, $err2) = new_user({ name => 'root', age => 1 });
+$user2 # => undef;
+$err2  # => ['Reserved name', 'Too young'];
 ```
 
 # DESCRIPTION
 
-`Result::Simple` is a dead simple perl-ish result type.
+Result::Simple is a dead simple perl-ish Result.
 
-Result type represents a function's outcome as either success or failure, enabling safer error handling and more effective control flow management. This pattern is common in modern languages like Haskell, Rust, and Go.
+Result represents a function's outcome as either success or failure, enabling safer error handling and more effective control flow management. This pattern is used in other languages such as F#, Rust, and Go.
 
 In perl, this pattern is also useful. And this module provides a simple way to use it. This module does not wrap return value in an object. Just return a tuple of `(Data, Undef)` or `(Undef, Error)`.
 
@@ -87,7 +86,8 @@ Note that the error value should not be a falsy value, otherwise it will throw a
 sub foo :Result(Int, Error) ($input) {
     Ok('hello');
 }
-# => throw exception: Invalid data type in `foo`: "hello"
+# => throw exception: Invalid data type in `foo`: "hello" (when CHECK_ENABLED is true)
+# => no exception (when CHECK_ENABLED is false)
 ```
 
 This attribute is used to define a function that returns a success or failure.

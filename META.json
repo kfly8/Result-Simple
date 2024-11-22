@@ -1,5 +1,5 @@
 {
-   "abstract" : "A dead simple perl-ish result type like Haskell, Rust, Go, etc.",
+   "abstract" : "A dead simple perl-ish Result like F#, Rust, Go, etc.",
    "author" : [
       "kobaken <kentafly88@gmail.com>"
    ],
@@ -51,7 +51,7 @@
       },
       "test" : {
          "requires" : {
-            "Test::More" : "0.98"
+            "Test2::V0" : "0.000135"
          }
       }
    },
