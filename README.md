@@ -76,7 +76,7 @@ Ok($data)
 # => ($data, undef)
 ```
 
-Return a tuple of value and undef. When the function succeeds, it should return this.
+Return a tuple of a given value and undef. When the function succeeds, it should return this.
 
 ### Err
 
@@ -85,8 +85,8 @@ Err($err)
 # => (undef, $err)
 ```
 
-Return a tuple of undef and error. When the function fails, it should return this.
-Note that the error value must be a truthy, otherwise it will throw an exception.
+Return a tuple of undef and a given error. When the function fails, it should return this.
+Note that the error value must be a truthy value, otherwise it will throw an exception.
 
 ## ATTRIBUTES
 
@@ -136,6 +136,8 @@ Otherwise, if it is falsy, `:Result(T, E)` attribute does nothing. The default i
 
 ```perl
 sub invalid :Result(Int, undef) { Ok("hello") }
+
+my ($data, $err) = invalid();
 # => throw exception when check enabled
 # => no exception when check disabled
 ```

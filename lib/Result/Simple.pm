@@ -205,15 +205,15 @@ This module does not wrap a return value in an object. Just return a tuple like 
     Ok($data)
     # => ($data, undef)
 
-Return a tuple of value and undef. When the function succeeds, it should return this.
+Return a tuple of a given value and undef. When the function succeeds, it should return this.
 
 =head3 Err
 
     Err($err)
     # => (undef, $err)
 
-Return a tuple of undef and error. When the function fails, it should return this.
-Note that the error value must be a truthy, otherwise it will throw an exception.
+Return a tuple of undef and a given error. When the function fails, it should return this.
+Note that the error value must be a truthy value, otherwise it will throw an exception.
 
 =head2 ATTRIBUTES
 
@@ -260,6 +260,8 @@ If the C<ENV{RESULT_SIMPLE_CHECK_ENABLED}> environment is truthy before loading 
 Otherwise, if it is falsy, C<:Result(T, E)> attribute does nothing. The default is false.
 
     sub invalid :Result(Int, undef) { Ok("hello") }
+
+    my ($data, $err) = invalid();
     # => throw exception when check enabled
     # => no exception when check disabled
 
