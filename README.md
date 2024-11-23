@@ -132,7 +132,7 @@ BEGIN {
 
 ## What happens when you forget to call `Ok` or `Err`?
 
-The following example is a common mistake:
+Forgetting to call `Ok` or `Err` function is a common mistake. Consider the following example:
 
 ```perl
 sub validate_name :Result(Str, ErrorMessage) ($name) {
@@ -144,17 +144,22 @@ my ($name, $err) = validate_name('');
 # => throw exception: Invalid result tuple (T, E)
 ```
 
-In this case, the function throws an exception. But this is lucky case. The following case is not detected,
-because the return value is a valid failure result `(undef, ErrorMessage)`:
+In this case, the function throws an exception because the return value is not a valid result tuple `($data, undef)` or `(undef, $err)`.
+This is fortunate, as the mistake is detected immediately. The following case is not detected:
 
 ```perl
 sub foo :Result(Str, ErrorMessage) {
-    return (undef, 'apple'); # Not call `Ok` or `Err` function.
+    return (undef, 'apple'); # No use of `Ok` or `Err` function.
 }
 
 my ($data, $err) = foo;
 # => $err is 'apple'
 ```
+
+Here, the function returns a valid failure tuple `(undef, $err)`. However it is unclear whether this was intentional or a mistake.
+The lack of `Ok` or `Err` makes the intent ambiguous.
+
+Conclusively, be sure to use `Ok` or `Err` functions to make it clear whether the success or failure is intentional.
 
 # LICENSE
 
