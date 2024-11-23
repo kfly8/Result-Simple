@@ -55,12 +55,14 @@ sub Result : ATTR(CODE) {
         croak "Result T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $line\n";
     }
 
-    unless (Scalar::Util::blessed($E) && $E->can('check')) {
-        croak "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
-    }
+    if (defined $E) {
+        unless (Scalar::Util::blessed($E) && $E->can('check')) {
+            croak "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
+        }
 
-    if (my @f = grep { $E->check($_) } @{ FALSY_VALUES() }) {
-        croak "Result E should not allow falsy values: @{[ _ddf(\@f) ]} at $filename line $line\n";
+        if (my @f = grep { $E->check($_) } @{ FALSY_VALUES() }) {
+            croak "Result E should not allow falsy values: @{[ _ddf(\@f) ]} at $filename line $line\n";
+        }
     }
 
     wrap_code($referent, $package, $name, $T, $E);
@@ -81,8 +83,13 @@ sub wrap_code {
         my ($data, $err) = @result;
 
         if ($err) {
-            if (!$E->check($err) || defined $data) {
-                Carp::confess "Invalid failure result in `$name`: @{[ _ddf([$data, $err]) ]}";
+            if (defined $E) {
+                if (!$E->check($err) || defined $data) {
+                    Carp::confess "Invalid failure result in `$name`: @{[ _ddf([$data, $err]) ]}";
+                }
+            } else {
+                # Result(T, undef) should not return an error.
+                Carp::confess "Never return error in `$name`: @{[ _ddf([$data, $err]) ]}";
             }
         } else {
             if (!$T->check($data) || defined $err) {
@@ -221,12 +228,16 @@ This attribute is used to define a function that returns a success or failure.
 Type T is the return type when the function is successful, and type E is the return type when the function fails.
 
 Types requires C<check> method that returns true or false. So you can use your favorite type constraint module like
-L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc. And type E should not allow falsy values.
+L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc. Additionally type E dose not allow falsy values.
 
     sub foo :Result(Int, Str) ($input) {
         ...
     }
     # => throw exception: Result E should not allow falsy values: ["0"]
+
+If you set type E to C<undef>, the function should not return an error.
+
+    sub double :Result(Int, undef) ($n) { Ok($n * 2) }
 
 If the C<RESULT_SIMPLE_CHECK_ENABLED> environment variable is set to a true value, the type check will be enabled.
 This means that C<:Result> attribute does not do anything when the environment variable is false. It is useful for production code.

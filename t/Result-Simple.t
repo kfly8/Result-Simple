@@ -49,11 +49,16 @@ subtest 'Test `Ok` and `Err` functions' => sub {
 };
 
 subtest 'Test :Result attribute' => sub {
+    # valid cases
     sub valid :Result(Int, NonEmptyStr) { Ok(42) }
+    sub no_error :Result(Int, undef) { Ok(42) }
+
+    # invalid cases
     sub invalid_ok_type :Result(Int, NonEmptyStr) { Ok('foo') }
     sub invalid_err_type :Result(Int, NonEmptyStr) { Err(\1) }
     sub a_few_result :Result(Int, NonEmptyStr) { 'foo' }
     sub too_many_result :Result(Int, NonEmptyStr) { (1,2,3) }
+    sub never_return_error :Result(Int, undef) { Err('foo') }
 
     subtest 'When a return value satisfies the Result type (T, E), then return the value' => sub {
         my ($data, $err) = valid();
@@ -61,11 +66,18 @@ subtest 'Test :Result attribute' => sub {
         is $err, undef;
     };
 
+    subtest 'When a return value satisfies the Result type (T, undef), then return the value' => sub {
+        my ($data, $err) = no_error();
+        is $data, 42;
+        is $err, undef;
+    };
+
     subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception' => sub {
-        like dies { my ($data, $err) = invalid_ok_type() },  qr!Invalid success result in `invalid_ok_type`: \['foo',undef\]!;
-        like dies { my ($data, $err) = invalid_err_type() }, qr!Invalid failure result in `invalid_err_type`: \[undef,\\1\]!;
-        like dies { my ($data, $err) = a_few_result() },     qr!Invalid result tuple \(T, E\) in `a_few_result`. Do you forget to call `Ok` or `Err` function\? Got: \['foo'\]!;
-        like dies { my ($data, $err) = too_many_result() },  qr!Invalid result tuple \(T, E\) in `too_many_result`. Do you forget to call `Ok` or `Err` function\? Got: \[1,2,3\]!;
+        like dies { my ($data, $err) = invalid_ok_type() },    qr!Invalid success result in `invalid_ok_type`: \['foo',undef\]!;
+        like dies { my ($data, $err) = invalid_err_type() },   qr!Invalid failure result in `invalid_err_type`: \[undef,\\1\]!;
+        like dies { my ($data, $err) = a_few_result() },       qr!Invalid result tuple \(T, E\) in `a_few_result`. Do you forget to call `Ok` or `Err` function\? Got: \['foo'\]!;
+        like dies { my ($data, $err) = too_many_result() },    qr!Invalid result tuple \(T, E\) in `too_many_result`. Do you forget to call `Ok` or `Err` function\? Got: \[1,2,3\]!;
+        like dies { my ($data, $err) = never_return_error() }, qr!Never return error in `never_return_error`: \[undef,'foo'\]!;
     };
 
     subtest 'Must handle error' => sub {

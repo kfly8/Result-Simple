@@ -103,13 +103,19 @@ This attribute is used to define a function that returns a success or failure.
 Type T is the return type when the function is successful, and type E is the return type when the function fails.
 
 Types requires `check` method that returns true or false. So you can use your favorite type constraint module like
-[Type::Tiny](https://metacpan.org/pod/Type%3A%3ATiny), [Moose](https://metacpan.org/pod/Moose), [Mouse](https://metacpan.org/pod/Mouse) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc. And type E should not allow falsy values.
+[Type::Tiny](https://metacpan.org/pod/Type%3A%3ATiny), [Moose](https://metacpan.org/pod/Moose), [Mouse](https://metacpan.org/pod/Mouse) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc. Additionally type E dose not allow falsy values.
 
 ```perl
 sub foo :Result(Int, Str) ($input) {
     ...
 }
 # => throw exception: Result E should not allow falsy values: ["0"]
+```
+
+If you set type E to `undef`, the function should not return an error.
+
+```perl
+sub double :Result(Int, undef) ($n) { Ok($n * 2) }
 ```
 
 If the `RESULT_SIMPLE_CHECK_ENABLED` environment variable is set to a true value, the type check will be enabled.
