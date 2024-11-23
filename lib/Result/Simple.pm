@@ -25,6 +25,8 @@ use constant FALSY_VALUES => [0, '0', '', undef];
 sub Ok {
     if (CHECK_ENABLED) {
         croak "`Ok` must be called in list context" unless wantarray;
+        croak "`Ok` does not allow multiple arguments" if @_ > 1;
+        croak "`Ok` does not allow no arguments" if @_ == 0;
     }
     ($_[0], undef)
 }
@@ -33,6 +35,8 @@ sub Ok {
 sub Err {
     if (CHECK_ENABLED) {
         croak "`Err` must be called in list context" unless wantarray;
+        croak "`Err` does not allow multiple arguments." if @_ > 1;
+        croak "`Err` does not allow no arguments" if @_ == 0;
         croak "`Err` does not allow a falsy value: @{[ _ddf($_[0]) ]}" unless $_[0];
     }
     (undef, $_[0])
@@ -69,15 +73,20 @@ sub wrap_code {
     my $wrapped = sub {
         croak "Must handle error in `$name`" unless wantarray;
 
-        my ($data, $err) = &Scope::Upper::uplevel($code, @_, &Scope::Upper::CALLER(0));
+        my @result = &Scope::Upper::uplevel($code, @_, &Scope::Upper::CALLER(0));
+        unless (@result == 2) {
+            Carp::confess "Invalid result tuple (T, E) in `$name`. Do you forget to call `Ok` or `Err` function? Got: @{[ _ddf(\@result) ]}";
+        }
+
+        my ($data, $err) = @result;
 
         if ($err) {
-            unless ($E->check($err)) {
-                Carp::confess "Invalid error type in `$name`: ", _ddf($err);
+            if (!$E->check($err) || defined $data) {
+                Carp::confess "Invalid failure result in `$name`: @{[ _ddf([$data, $err]) ]}";
             }
         } else {
-            unless ($T->check($data)) {
-                Carp::confess "Invalid data type in `$name`: ", _ddf($data);
+            if (!$T->check($data) || defined $err) {
+                Carp::confess "Invalid success result in `$name`: @{[ _ddf([$data, $err]) ]}";
             }
         }
 
@@ -125,34 +134,32 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
     # Enable type check. Default is false.
     BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
 
+    use v5.40;
     use Test2::V0;
+
     use Result::Simple;
     use Types::Common -types;
 
-    use kura ErrorMessage => NonEmptyStr;
+    use kura ErrorMessage => StrLength[3,];
+    use kura ValidName    => sub { my (undef, $e) = validate_name($_); !$e };
+    use kura ValidAge     => sub { my (undef, $e) = validate_age($_); !$e };
+    use kura ValidUser    => Dict[name => ValidName, age => ValidAge];
 
-    use kura ValidName => sub { my (undef, $e) = validate_name($_); !$e };
-    use kura ValidAge  => sub { my (undef, $e) = validate_age($_); !$e };
-    use kura ValidUser => Dict[name => ValidName, age => ValidAge];
-
-    sub validate_name {
-        my $name = shift;
+    sub validate_name($name) {
         return Err('No name') unless defined $name;
         return Err('Empty name') unless length $name;
         return Err('Reserved name') if $name eq 'root';
         return Ok($name);
     }
 
-    sub validate_age {
-        my $age = shift;
+    sub validate_age($age) {
         return Err('No age') unless defined $age;
         return Err('Invalid age') unless $age =~ /\A\d+\z/;
         return Err('Too young age') if $age < 18;
         return Ok($age);
     }
 
-    sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
-        my $args = shift;
+    sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) ($args) {
         my @errors;
 
         my ($name, $name_err) = validate_name($args->{name});
@@ -177,21 +184,25 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 
 Result::Simple is a dead simple Perl-ish Result.
 
-Results represent a function's return value as success or failure, enabling safer error handling and more effective control flow management. This pattern is used in other languages such as F#, Rust, and Go.
+Result represents a function's return value as success or failure, enabling safer error handling and more effective control flow management.
+This pattern is used in other languages such as F#, Rust, and Go.
 
-In Perl, this pattern is also useful, and this module provides a simple way to use it. This module does not wrap a return value in an object. Just return a tuple like C<($data, undef)> or C<(undef, $err)>.
+In Perl, this pattern is also useful, and this module provides a simple way to use it.
+This module does not wrap a return value in an object. Just return a tuple like C<($data, undef)> or C<(undef, $err)>.
 
 =head2 EXPORT FUNCTIONS
 
 =head3 Ok
 
-    Ok($data) : ($data, undef)
+    Ok($data)
+    # => ($data, undef)
 
 Return a tuple of value and undef. When the function succeeds, it should return this.
 
 =head3 Err
 
-    Err($err) : (undef, $err)
+    Err($err)
+    # => (undef, $err)
 
 Return a tuple of undef and error. When the function fails, it should return this.
 Note that the error value should not be a falsy value, otherwise it will throw an exception.
@@ -203,7 +214,7 @@ Note that the error value should not be a falsy value, otherwise it will throw a
     sub foo :Result(Int, Error) ($input) {
         Ok('hello');
     }
-    # => throw exception: Invalid data type in `foo`: "hello" (when CHECK_ENABLED is true)
+    # => throw exception: Invalid success result in `foo`: ["hello", undef] (when CHECK_ENABLED is true)
     # => no exception (when CHECK_ENABLED is false)
 
 This attribute is used to define a function that returns a success or failure.
@@ -226,9 +237,34 @@ This means that C<:Result> attribute does not do anything when the environment v
 
 If this environment variable is set to a true value, the type check will be enabled. Default is false.
 
+    # Enable type check.
     BEGIN {
         $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
     }
+
+=head1 NOTE
+
+=head2 What happens if forgetting to call C<Ok> or C<Err> functions?
+
+The following example is a common mistake:
+
+    sub validate_name :Result(Str, ErrorMessage) ($name) {
+        return "Empty name" unless $name; # Oops! forgot to call `Err` function.
+        return Ok($name);
+    }
+
+    my ($name, $err) = validate_name('');
+    # => throw exception: Invalid result tuple (T, E)
+
+In this case, the function throws an exception. But this is lucky case. The following case is not detected,
+because the return value is a valid failure result C<(undef, ErrorMessage)>:
+
+    sub foo :Result(Str, ErrorMessage) {
+        return (undef, 'apple'); # Not call `Ok` or `Err` function.
+    }
+
+    my ($data, $err) = foo;
+    # => $err is 'apple'
 
 =head1 LICENSE
 

@@ -46,7 +46,7 @@
             "Scalar::Util" : "0",
             "Scope::Upper" : "0",
             "Sub::Util" : "0",
-            "perl" : "5.014004"
+            "perl" : "v5.40.0"
          }
       },
       "test" : {

@@ -31,8 +31,17 @@ subtest 'Test `Ok` and `Err` functions' => sub {
         like dies { my $err = Err('bar') }, qr/`Err` must be called in list context/;
     };
 
+    subtest '`Ok` and `Err` does not allow multiple arguments' => sub {
+        like dies { my ($data, $err) = Ok('foo', 'bar') }, qr/`Ok` does not allow multiple arguments/;
+        like dies { my ($data, $err) = Err('bar', 'foo') }, qr/`Err` does not allow multiple arguments/;
+    };
+
+    subtest '`Ok` and `Err` does not allow no arguments' => sub {
+        like dies { my ($data, $err) = Ok() }, qr/`Ok` does not allow no arguments/;
+        like dies { my ($data, $err) = Err() }, qr/`Err` does not allow no arguments/;
+    };
+
     subtest '`Err` does not allow falsy values' => sub {
-        like dies { my ($data, $err) = Err() }, qr/`Err` does not allow a falsy value: undef/;
         like dies { my ($data, $err) = Err(0) }, qr/`Err` does not allow a falsy value: 0/;
         like dies { my ($data, $err) = Err('0') }, qr/`Err` does not allow a falsy value: '0'/;
         like dies { my ($data, $err) = Err('') }, qr/`Err` does not allow a falsy value: ''/;
@@ -40,9 +49,11 @@ subtest 'Test `Ok` and `Err` functions' => sub {
 };
 
 subtest 'Test :Result attribute' => sub {
-    sub valid : Result(Int, NonEmptyStr) { Ok(42) }
+    sub valid :Result(Int, NonEmptyStr) { Ok(42) }
     sub invalid_ok_type :Result(Int, NonEmptyStr) { Ok('foo') }
     sub invalid_err_type :Result(Int, NonEmptyStr) { Err(\1) }
+    sub a_few_result :Result(Int, NonEmptyStr) { 'foo' }
+    sub too_many_result :Result(Int, NonEmptyStr) { (1,2,3) }
 
     subtest 'When a return value satisfies the Result type (T, E), then return the value' => sub {
         my ($data, $err) = valid();
@@ -51,8 +62,10 @@ subtest 'Test :Result attribute' => sub {
     };
 
     subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception' => sub {
-        like dies { my ($data, $err) = invalid_ok_type() }, qr!Invalid data type in `invalid_ok_type`: 'foo'!;
-        like dies { my ($data, $err) = invalid_err_type() }, qr!Invalid error type in `invalid_err_type`: \\1!;
+        like dies { my ($data, $err) = invalid_ok_type() }, qr!Invalid success result in `invalid_ok_type`: \['foo',undef\]!;
+        like dies { my ($data, $err) = invalid_err_type() }, qr!Invalid failure result in `invalid_err_type`: \[undef,\\1\]!;
+        like dies { my ($data, $err) = a_few_result() }, qr!Invalid result tuple \(T, E\) in `a_few_result`. Do you forget to call `Ok` or `Err` function\? Got: \['foo'\]!;
+        like dies { my ($data, $err) = too_many_result() }, qr!Invalid result tuple \(T, E\) in `too_many_result`. Do you forget to call `Ok` or `Err` function\? Got: \[1,2,3\]!;
     };
 
     subtest 'Must handle error' => sub {
