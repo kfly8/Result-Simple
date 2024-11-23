@@ -15,7 +15,7 @@ use Sub::Util ();
 use Scalar::Util ();
 
 # If this option is true, then check `Ok` and `Err` functions usage and check a return value type.
-# However it should be falsy for production code, because of performance and it is an assertion, not a validation.
+# However, it should be falsy for production code, because of performance and it is an assertion, not a validation.
 use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 0;
 
 # Err does not allow these values.
@@ -138,7 +138,7 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 
 =head1 SYNOPSIS
 
-    # Enable type check. Default is false.
+    # Enable type check. The default is false.
     BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
 
     use v5.40;
@@ -212,46 +212,62 @@ Return a tuple of value and undef. When the function succeeds, it should return 
     # => (undef, $err)
 
 Return a tuple of undef and error. When the function fails, it should return this.
-Note that the error value should not be a falsy value, otherwise it will throw an exception.
+Note that the error value must be a truthy, otherwise it will throw an exception.
 
 =head2 ATTRIBUTES
 
 =head3 :Result(T, E)
 
-    sub foo :Result(Int, Error) ($input) {
-        Ok('hello');
+You can use the C<:Result(T, E)> attribute to define a function that returns a success or failure and asserts the return value types. Here is an example:
+
+    sub half :Result(Int, ErrorMessage) ($n) {
+        if ($n % 2) {
+            return Err('Odd number');
+        } else {
+            return Ok($n / 2);
+        }
     }
-    # => throw exception: Invalid success result in `foo`: ["hello", undef] (when CHECK_ENABLED is true)
-    # => no exception (when CHECK_ENABLED is false)
 
-This attribute is used to define a function that returns a success or failure.
-Type T is the return type when the function is successful, and type E is the return type when the function fails.
+=over 2
 
-Types requires C<check> method that returns true or false. So you can use your favorite type constraint module like
-L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc. Additionally type E dose not allow falsy values.
+=item T (success type)
 
-    sub foo :Result(Int, Str) ($input) {
-        ...
-    }
-    # => throw exception: Result E should not allow falsy values: ["0"]
+When the function succeeds, then returns C<($data, undef)>, and C<$data> should satisfy this type.
 
-If you set type E to C<undef>, the function should not return an error.
+=item E (error type)
+
+When the function fails, then returns C<(undef, $err)>, and C<$err> should satisfy this type.
+Additionally, type E must be truthy value to distinguish between success and failure.
+
+    sub foo :Result(Int, Str) ($input) { }
+    # => throw exception: Result E should not allow falsy values: ["0"] because Str allows "0"
+
+When a function never returns an error, you can set type E to C<undef>:
 
     sub double :Result(Int, undef) ($n) { Ok($n * 2) }
 
-If the C<RESULT_SIMPLE_CHECK_ENABLED> environment variable is set to a true value, the type check will be enabled.
-This means that C<:Result> attribute does not do anything when the environment variable is false. It is useful for production code.
+=back
+
+Note that types require C<check> method that returns true or false. So you can use your favorite type constraint module like
+L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc.
 
 =head2 ENVIRONMENTS
 
 =head3 C<$ENV{RESULT_SIMPLE_CHECK_ENABLED}>
 
-If this environment variable is set to a true value, the type check will be enabled. Default is false.
+If the C<ENV{RESULT_SIMPLE_CHECK_ENABLED}> environment is truthy before loading this module, it works as an assertion.
+Otherwise, if it is falsy, C<:Result(T, E)> attribute does nothing. The default is false.
 
-    # Enable type check.
-    BEGIN {
-        $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
-    }
+    sub invalid :Result(Int, undef) { Ok("hello") }
+    # => throw exception when check enabled
+    # => no exception when check disabled
+
+The following code is an example to enable it:
+
+    BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = is_test ? 1 : 0 }
+    use Result::Simple;
+
+This option is useful for development and testing mode, and it recommended to set it to false for production.
 
 =head1 NOTE
 
@@ -260,7 +276,7 @@ If this environment variable is set to a true value, the type check will be enab
 Forgetting to call C<Ok> or C<Err> function is a common mistake. Consider the following example:
 
     sub validate_name :Result(Str, ErrorMessage) ($name) {
-        return "Empty name" unless $name; # Oops! forgot to call `Err` function.
+        return "Empty name" unless $name; # Oops! Forgot to call `Err` function.
         return Ok($name);
     }
 
@@ -277,7 +293,7 @@ This is fortunate, as the mistake is detected immediately. The following case is
     my ($data, $err) = foo;
     # => $err is 'apple'
 
-Here, the function returns a valid failure tuple C<(undef, $err)>. However it is unclear whether this was intentional or a mistake.
+Here, the function returns a valid failure tuple C<(undef, $err)>. However, it is unclear whether this was intentional or a mistake.
 The lack of C<Ok> or C<Err> makes the intent ambiguous.
 
 Conclusively, be sure to use C<Ok> or C<Err> functions to make it clear whether the success or failure is intentional.

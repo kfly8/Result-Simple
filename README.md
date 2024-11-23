@@ -6,7 +6,7 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 # SYNOPSIS
 
 ```perl
-# Enable type check. Default is false.
+# Enable type check. The default is false.
 BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
 
 use v5.40;
@@ -85,54 +85,68 @@ Err($err)
 ```
 
 Return a tuple of undef and error. When the function fails, it should return this.
-Note that the error value should not be a falsy value, otherwise it will throw an exception.
+Note that the error value must be a truthy, otherwise it will throw an exception.
 
 ## ATTRIBUTES
 
 ### :Result(T, E)
 
+You can use the `:Result(T, E)` attribute to define a function that returns a success or failure and asserts the return value types. Here is an example:
+
 ```perl
-sub foo :Result(Int, Error) ($input) {
-    Ok('hello');
+sub half :Result(Int, ErrorMessage) ($n) {
+    if ($n % 2) {
+        return Err('Odd number');
+    } else {
+        return Ok($n / 2);
+    }
 }
-# => throw exception: Invalid success result in `foo`: ["hello", undef] (when CHECK_ENABLED is true)
-# => no exception (when CHECK_ENABLED is false)
 ```
 
-This attribute is used to define a function that returns a success or failure.
-Type T is the return type when the function is successful, and type E is the return type when the function fails.
+- T (success type)
 
-Types requires `check` method that returns true or false. So you can use your favorite type constraint module like
-[Type::Tiny](https://metacpan.org/pod/Type%3A%3ATiny), [Moose](https://metacpan.org/pod/Moose), [Mouse](https://metacpan.org/pod/Mouse) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc. Additionally type E dose not allow falsy values.
+    When the function succeeds, then returns `($data, undef)`, and `$data` should satisfy this type.
 
-```perl
-sub foo :Result(Int, Str) ($input) {
-    ...
-}
-# => throw exception: Result E should not allow falsy values: ["0"]
-```
+- E (error type)
 
-If you set type E to `undef`, the function should not return an error.
+    When the function fails, then returns `(undef, $err)`, and `$err` should satisfy this type.
+    Additionally, type E must be truthy value to distinguish between success and failure.
 
-```perl
-sub double :Result(Int, undef) ($n) { Ok($n * 2) }
-```
+    ```perl
+    sub foo :Result(Int, Str) ($input) { }
+    # => throw exception: Result E should not allow falsy values: ["0"] because Str allows "0"
+    ```
 
-If the `RESULT_SIMPLE_CHECK_ENABLED` environment variable is set to a true value, the type check will be enabled.
-This means that `:Result` attribute does not do anything when the environment variable is false. It is useful for production code.
+    When a function never returns an error, you can set type E to `undef`:
+
+    ```perl
+    sub double :Result(Int, undef) ($n) { Ok($n * 2) }
+    ```
+
+Note that types require `check` method that returns true or false. So you can use your favorite type constraint module like
+[Type::Tiny](https://metacpan.org/pod/Type%3A%3ATiny), [Moose](https://metacpan.org/pod/Moose), [Mouse](https://metacpan.org/pod/Mouse) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc.
 
 ## ENVIRONMENTS
 
 ### `$ENV{RESULT_SIMPLE_CHECK_ENABLED}`
 
-If this environment variable is set to a true value, the type check will be enabled. Default is false.
+If the `ENV{RESULT_SIMPLE_CHECK_ENABLED}` environment is truthy before loading this module, it works as an assertion.
+Otherwise, if it is falsy, `:Result(T, E)` attribute does nothing. The default is false.
 
+```perl
+sub invalid :Result(Int, undef) { Ok("hello") }
+# => throw exception when check enabled
+# => no exception when check disabled
 ```
-# Enable type check.
-BEGIN {
-    $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
-}
+
+The following code is an example to enable it:
+
+```perl
+BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = is_test ? 1 : 0 }
+use Result::Simple;
 ```
+
+This option is useful for development and testing mode, and it recommended to set it to false for production.
 
 # NOTE
 
@@ -142,7 +156,7 @@ Forgetting to call `Ok` or `Err` function is a common mistake. Consider the foll
 
 ```perl
 sub validate_name :Result(Str, ErrorMessage) ($name) {
-    return "Empty name" unless $name; # Oops! forgot to call `Err` function.
+    return "Empty name" unless $name; # Oops! Forgot to call `Err` function.
     return Ok($name);
 }
 
@@ -162,7 +176,7 @@ my ($data, $err) = foo;
 # => $err is 'apple'
 ```
 
-Here, the function returns a valid failure tuple `(undef, $err)`. However it is unclear whether this was intentional or a mistake.
+Here, the function returns a valid failure tuple `(undef, $err)`. However, it is unclear whether this was intentional or a mistake.
 The lack of `Ok` or `Err` makes the intent ambiguous.
 
 Conclusively, be sure to use `Ok` or `Err` functions to make it clear whether the success or failure is intentional.

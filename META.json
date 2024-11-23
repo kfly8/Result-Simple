@@ -42,8 +42,6 @@
       },
       "runtime" : {
          "requires" : {
-            "Attribute::Handlers" : "0",
-            "Scalar::Util" : "0",
             "Scope::Upper" : "0",
             "Sub::Util" : "0",
             "perl" : "v5.40.0"
