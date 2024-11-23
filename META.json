@@ -44,7 +44,7 @@
          "requires" : {
             "Scope::Upper" : "0",
             "Sub::Util" : "0",
-            "perl" : "v5.40.0"
+            "perl" : "5.014004"
          }
       },
       "test" : {

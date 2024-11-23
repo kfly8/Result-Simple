@@ -9,9 +9,7 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 # Enable type check. The default is false.
 BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
 
-use v5.40;
 use Test2::V0;
-
 use Result::Simple;
 use Types::Common -types;
 
@@ -20,21 +18,24 @@ use kura ValidName    => sub { my (undef, $e) = validate_name($_); !$e };
 use kura ValidAge     => sub { my (undef, $e) = validate_age($_); !$e };
 use kura ValidUser    => Dict[name => ValidName, age => ValidAge];
 
-sub validate_name($name) {
+sub validate_name {
+    my $name = shift;
     return Err('No name') unless defined $name;
     return Err('Empty name') unless length $name;
     return Err('Reserved name') if $name eq 'root';
     return Ok($name);
 }
 
-sub validate_age($age) {
+sub validate_age {
+    my $age = shift;
     return Err('No age') unless defined $age;
     return Err('Invalid age') unless $age =~ /\A\d+\z/;
     return Err('Too young age') if $age < 18;
     return Ok($age);
 }
 
-sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) ($args) {
+sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
+    my $args = shift;
     my @errors;
 
     my ($name, $name_err) = validate_name($args->{name});
