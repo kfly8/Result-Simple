@@ -130,7 +130,7 @@ BEGIN {
 
 # NOTE
 
-## What happens if forgetting to call `Ok` or `Err` functions?
+## What happens when you forget to call `Ok` or `Err`?
 
 The following example is a common mistake:
 

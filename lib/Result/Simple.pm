@@ -244,7 +244,7 @@ If this environment variable is set to a true value, the type check will be enab
 
 =head1 NOTE
 
-=head2 What happens if forgetting to call C<Ok> or C<Err> functions?
+=head2 What happens when you forget to call C<Ok> or C<Err>?
 
 The following example is a common mistake:
 

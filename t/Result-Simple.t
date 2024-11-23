@@ -62,10 +62,10 @@ subtest 'Test :Result attribute' => sub {
     };
 
     subtest 'When a return value does not satisfy the Result type (T, E), then throw a exception' => sub {
-        like dies { my ($data, $err) = invalid_ok_type() }, qr!Invalid success result in `invalid_ok_type`: \['foo',undef\]!;
+        like dies { my ($data, $err) = invalid_ok_type() },  qr!Invalid success result in `invalid_ok_type`: \['foo',undef\]!;
         like dies { my ($data, $err) = invalid_err_type() }, qr!Invalid failure result in `invalid_err_type`: \[undef,\\1\]!;
-        like dies { my ($data, $err) = a_few_result() }, qr!Invalid result tuple \(T, E\) in `a_few_result`. Do you forget to call `Ok` or `Err` function\? Got: \['foo'\]!;
-        like dies { my ($data, $err) = too_many_result() }, qr!Invalid result tuple \(T, E\) in `too_many_result`. Do you forget to call `Ok` or `Err` function\? Got: \[1,2,3\]!;
+        like dies { my ($data, $err) = a_few_result() },     qr!Invalid result tuple \(T, E\) in `a_few_result`. Do you forget to call `Ok` or `Err` function\? Got: \['foo'\]!;
+        like dies { my ($data, $err) = too_many_result() },  qr!Invalid result tuple \(T, E\) in `too_many_result`. Do you forget to call `Ok` or `Err` function\? Got: \[1,2,3\]!;
     };
 
     subtest 'Must handle error' => sub {
