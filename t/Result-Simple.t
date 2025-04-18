@@ -14,7 +14,7 @@ BEGIN {
     # $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
 }
 
-use Result::Simple qw( ok err result_for unsafe_unwrap unsafe_unwrap_err );
+use Result::Simple qw( ok err result_for unsafe_unwrap unsafe_unwrap_err chain pipeline );
 
 subtest 'Test `ok` and `err` functions' => sub {
     subtest '`ok` and `err` functions just return values' => sub {
@@ -166,5 +166,53 @@ subtest 'Test `unsafe_unwrap_err` function' => sub {
     };
 };
 
+subtest 'Test `chain` function' => sub {
+    sub chain_test {
+        my $v = shift;
+        return err('No more') if $v == 1;
+        return ok($v / 2);
+    }
+
+    my ($v1, $e1) = chain(chain_test => ok(8));
+    is $v1, 4;
+    is $e1, undef;
+
+    my ($v2, $e2) = chain(chain_test => ok(1));
+    is $v2, undef;
+    is $e2, 'No more';
+
+    my ($v3, $e3) = chain(chain_test => err('foo'));
+    is $v3, undef;
+    is $e3, 'foo';
+
+    like dies { my $v = chain(chain_test => 1, 2) }, qr/`chain` must be called in list context/;
+    like dies { my ($v, $e) = chain(chain_test => 1) }, qr/`chain` arguments must be func and result/;
+    like dies { my ($v, $e) = chain(unknown => 1, 2) }, qr/Function `unknown` not found in main/;
+};
+
+subtest 'Test `pipeline` function' => sub {
+    sub pipeline_test {
+        my $v = shift;
+        return err('No more') if $v == 1;
+        return ok($v / 2);
+    }
+
+    my $code = pipeline qw( pipeline_test pipeline_test );
+    my ($v1, $e1) = $code->(ok(8));
+    is $v1, 2;
+    is $e1, undef;
+
+    my ($v2, $e2) = $code->(ok(2));
+    is $v2, undef;
+    is $e2, 'No more';
+
+    my ($v3, $e3) = $code->(ok(1));
+    is $v3, undef;
+    is $e3, 'No more';
+
+    like dies { my $v = $code->(1, 2) }, qr/pipelined function must be called in list context/;
+    like dies { my ($v, $e) = $code->(1) }, qr/pipelined function arguments must be result/;
+    like dies { my $c = pipeline qw( unknown ) }, qr/Function `unknown` not found in main/;
+};
 
 done_testing;

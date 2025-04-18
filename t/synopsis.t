@@ -1,8 +1,9 @@
 use Test2::V0 qw(is done_testing);
 use Test2::Require::Module 'Type::Tiny' => '2.000000';
 use Test2::Require::Module 'kura';
+use feature qw( state );
 
-use Result::Simple qw( ok err result_for );
+use Result::Simple qw( ok err result_for chain pipeline);
 use Types::Standard -types;
 
 use kura Error   => Dict[message => Str];
@@ -36,7 +37,6 @@ sub validate_req {
     my $req = shift;
     my $err;
 
-    # $req = validate_name($req); # => Throw error! It requires list context to handle error
     ($req, $err) = validate_name($req);
     return err($err) if $err;
 
@@ -53,5 +53,23 @@ is $err1, undef;
 my ($req2, $err2) = validate_req({ name => 'root', age => 20 });
 is $req2, undef;
 is $err2, { message => 'Reserved name' };
+
+# Following are the same as above but using `chain` and `pipeline` functions.
+
+sub validate_req_with_chain {
+    my $req = shift;
+
+    my @r = ok($req);
+    @r = chain(validate_name => @r);
+    @r = chain(validate_age => @r);
+    return @r;
+}
+
+sub validate_req_with_pipeline {
+    my $req = shift;
+
+    state $code = pipeline qw( validate_name validate_age );
+    $code->(ok($req));
+}
 
 done_testing
