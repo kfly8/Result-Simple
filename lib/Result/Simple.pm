@@ -216,6 +216,7 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
     sub validate_req {
         my $args = shift;
 
+        # my $name = validate_name($args->{name}); # => Throw error! It requires list context to handle error
         my ($name, $name_err) = validate_name($args->{name});
         return err($name_err) if $name_err;
 

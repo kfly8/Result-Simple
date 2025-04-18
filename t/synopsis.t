@@ -33,6 +33,7 @@ result_for validate_req => Request, Error;
 sub validate_req {
     my $args = shift;
 
+    # my $name = validate_name($args->{name}); # => Throw error! It requires list context to handle error
     my ($name, $name_err) = validate_name($args->{name});
     return err($name_err) if $name_err;
 
