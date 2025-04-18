@@ -6,66 +6,78 @@ our $VERSION = "0.03";
 
 use Exporter 'import';
 
-our @EXPORT = qw( Ok Err _ATTR_CODE_Result );
+our @EXPORT_OK = qw( ok err result_for );
 
 use Carp;
-use Attribute::Handlers;
 use Scope::Upper ();
 use Sub::Util ();
 use Scalar::Util ();
 
-# If this option is true, then check `Ok` and `Err` functions usage and check a return value type.
+# If this option is true, then check `ok` and `err` functions usage and check a return value type.
 # However, it should be falsy for production code, because of performance and it is an assertion, not a validation.
 use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 0;
 
-# Err does not allow these values.
+# err does not allow these values.
 use constant FALSY_VALUES => [0, '0', '', undef];
 
 # When the function is successful, it should return this.
-sub Ok {
+sub ok {
     if (CHECK_ENABLED) {
-        croak "`Ok` must be called in list context" unless wantarray;
-        croak "`Ok` does not allow multiple arguments" if @_ > 1;
-        croak "`Ok` does not allow no arguments" if @_ == 0;
+        croak "`ok` must be called in list context" unless wantarray;
+        croak "`ok` does not allow multiple arguments" if @_ > 1;
+        croak "`ok` does not allow no arguments" if @_ == 0;
     }
     ($_[0], undef)
 }
 
 # When the function fails, it should return this.
-sub Err {
+sub err {
     if (CHECK_ENABLED) {
-        croak "`Err` must be called in list context" unless wantarray;
-        croak "`Err` does not allow multiple arguments." if @_ > 1;
-        croak "`Err` does not allow no arguments" if @_ == 0;
-        croak "`Err` does not allow a falsy value: @{[ _ddf($_[0]) ]}" unless $_[0];
+        croak "`err` must be called in list context" unless wantarray;
+        croak "`err` does not allow multiple arguments." if @_ > 1;
+        croak "`err` does not allow no arguments" if @_ == 0;
+        croak "`err` does not allow a falsy value: @{[ _ddf($_[0]) ]}" unless $_[0];
     }
     (undef, $_[0])
 }
 
-# This attribute is used to define a function that returns a success or failure.
+# result_for foo => (T, E);
+# This is used to define a function that returns a success or failure.
 # Example: `sub foo :Result(Int, Error)  { ... }`
-sub Result : ATTR(CODE) {
-    return unless CHECK_ENABLED;
+sub result_for {
+    unless (CHECK_ENABLED) {
+        # This is a no-op if CHECK_ENABLED is false.
+        return;
+    }
 
-    my ($package, $symbol, $referent, $attr, $data, $phase, $filename, $line) = @_;
-    my $name = *{$symbol}{NAME};
+    my ($function_name, $T, $E, %opts) = @_;
 
-    my ($T, $E) = @$data;
+    my @caller = caller($opts{caller_level} || 0);
+    my $package = $opts{package} || $caller[0];
+    my $filename = $caller[1];
+    my $line = $caller[2];
+
+    my $code = $package->can($function_name);
+
+    unless ($code) {
+        croak "result_for: function `$function_name` not found in package `$package` at $filename line $line\n";
+    }
+
     unless (Scalar::Util::blessed($T) && $T->can('check')) {
-        croak "Result T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $line\n";
+        croak "result_for T requires `check` method, got: @{[ _ddf($T) ]} at $filename line $line\n";
     }
 
     if (defined $E) {
         unless (Scalar::Util::blessed($E) && $E->can('check')) {
-            croak "Result E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
+            croak "result_for E requires `check` method, got: @{[ _ddf($E) ]} at $filename line $line\n";
         }
 
         if (my @f = grep { $E->check($_) } @{ FALSY_VALUES() }) {
-            croak "Result E should not allow falsy values: @{[ _ddf(\@f) ]} at $filename line $line\n";
+            croak "result_for E should not allow falsy values: @{[ _ddf(\@f) ]} at $filename line $line\n";
         }
     }
 
-    wrap_code($referent, $package, $name, $T, $E);
+    wrap_code($code, $package, $function_name, $T, $E);
 }
 
 # Wrap the original coderef with type check.
@@ -77,7 +89,7 @@ sub wrap_code {
 
         my @result = &Scope::Upper::uplevel($code, @_, &Scope::Upper::CALLER(0));
         unless (@result == 2) {
-            Carp::confess "Invalid result tuple (T, E) in `$name`. Do you forget to call `Ok` or `Err` function? Got: @{[ _ddf(\@result) ]}";
+            Carp::confess "Invalid result tuple (T, E) in `$name`. Do you forget to call `ok` or `err` function? Got: @{[ _ddf(\@result) ]}";
         }
 
         my ($data, $err) = @result;
@@ -152,18 +164,18 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 
     sub validate_name {
         my $name = shift;
-        return Err('No name') unless defined $name;
-        return Err('Empty name') unless length $name;
-        return Err('Reserved name') if $name eq 'root';
-        return Ok($name);
+        return err('No name') unless defined $name;
+        return err('Empty name') unless length $name;
+        return err('Reserved name') if $name eq 'root';
+        return ok($name);
     }
 
     sub validate_age {
         my $age = shift;
-        return Err('No age') unless defined $age;
-        return Err('Invalid age') unless $age =~ /\A\d+\z/;
-        return Err('Too young age') if $age < 18;
-        return Ok($age);
+        return err('No age') unless defined $age;
+        return err('Invalid age') unless $age =~ /\A\d+\z/;
+        return err('Too young age') if $age < 18;
+        return ok($age);
     }
 
     sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
@@ -176,8 +188,8 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
         my ($age, $age_err) = validate_age($args->{age});
         push @errors, $age_err if $age_err;
 
-        return Err(\@errors) if @errors;
-        return Ok({ name => $name, age => $age });
+        return err(\@errors) if @errors;
+        return ok({ name => $name, age => $age });
     }
 
     my ($user1, $err1) = new_user({ name => 'taro', age => 42 });
@@ -200,21 +212,21 @@ This module does not wrap a return value in an object. Just return a tuple like 
 
 =head2 EXPORT FUNCTIONS
 
-=head3 Ok
+=head3 ok
 
 Return a tuple of a given value and undef. When the function succeeds, it should return this.
 
     sub add($a, $b) {
-        Ok($a + $b); # => ($a + $b, undef)
+        ok($a + $b); # => ($a + $b, undef)
     }
 
-=head3 Err
+=head3 err
 
 Return a tuple of undef and a given error. When the function fails, it should return this.
 
     sub div($a, $b) {
-        return Err('Division by zero') if $b == 0; # => (undef, 'Division by zero')
-        Ok($a / $b);
+        return err('Division by zero') if $b == 0; # => (undef, 'Division by zero')
+        ok($a / $b);
     }
 
 Note that the error value must be a truthy value, otherwise it will throw an exception.
@@ -227,9 +239,9 @@ You can use the C<:Result(T, E)> attribute to define a function that returns a s
 
     sub half :Result(Int, ErrorMessage) ($n) {
         if ($n % 2) {
-            return Err('Odd number');
+            return err('Odd number');
         } else {
-            return Ok($n / 2);
+            return ok($n / 2);
         }
     }
 
@@ -249,7 +261,7 @@ Additionally, type E must be truthy value to distinguish between success and fai
 
 When a function never returns an error, you can set type E to C<undef>:
 
-    sub double :Result(Int, undef) ($n) { Ok($n * 2) }
+    sub double :Result(Int, undef) ($n) { ok($n * 2) }
 
 =back
 
@@ -263,7 +275,7 @@ L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc.
 If the C<ENV{RESULT_SIMPLE_CHECK_ENABLED}> environment is truthy before loading this module, it works as an assertion.
 Otherwise, if it is falsy, C<:Result(T, E)> attribute does nothing. The default is false.
 
-    sub invalid :Result(Int, undef) { Ok("hello") }
+    sub invalid :Result(Int, undef) { ok("hello") }
 
     my ($data, $err) = invalid();
     # => throw exception when check enabled
@@ -280,11 +292,11 @@ This option is useful for development and testing mode, and it recommended to se
 
 =head2 Avoiding Ambiguity in Result Handling
 
-Forgetting to call C<Ok> or C<Err> function is a common mistake. Consider the following example:
+Forgetting to call C<ok> or C<err> function is a common mistake. Consider the following example:
 
     sub validate_name :Result(Str, ErrorMessage) ($name) {
-        return "Empty name" unless $name; # Oops! Forgot to call `Err` function.
-        return Ok($name);
+        return "Empty name" unless $name; # Oops! Forgot to call `err` function.
+        return ok($name);
     }
 
     my ($name, $err) = validate_name('');
@@ -294,16 +306,16 @@ In this case, the function throws an exception because the return value is not a
 This is fortunate, as the mistake is detected immediately. The following case is not detected:
 
     sub foo :Result(Str, ErrorMessage) {
-        return (undef, 'apple'); # No use of `Ok` or `Err` function.
+        return (undef, 'apple'); # No use of `ok` or `err` function.
     }
 
     my ($data, $err) = foo;
     # => $err is 'apple'
 
 Here, the function returns a valid failure tuple C<(undef, $err)>. However, it is unclear whether this was intentional or a mistake.
-The lack of C<Ok> or C<Err> makes the intent ambiguous.
+The lack of C<ok> or C<err> makes the intent ambiguous.
 
-Conclusively, be sure to use C<Ok> or C<Err> functions to make it clear whether the success or failure is intentional.
+Conclusively, be sure to use C<ok> or C<err> functions to make it clear whether the success or failure is intentional.
 
 =head1 LICENSE
 
