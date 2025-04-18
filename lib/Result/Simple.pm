@@ -8,6 +8,8 @@ use Exporter::Shiny qw(
     ok
     err
     result_for
+    chain
+    pipeline
     unsafe_unwrap
     unsafe_unwrap_err
 );
@@ -140,6 +142,43 @@ sub wrap_code {
     *{$fullname} = $wrapped;
 }
 
+# `chain` takes a function name and a result tuple (T, E) and returns a new result tuple (T, E).
+sub chain {
+    my ($f, $value, $error) = @_;
+
+    if (CHECK_ENABLED) {
+        croak "`chain` must be called in list context" unless wantarray;
+        croak "`chain` arguments must be func and result like (func, T, E)" unless @_ == 3;
+    }
+
+    my $code = ref $f ? $f : do { my $t = caller(0); $t->can($f) or croak "Function `$f` not found in $t" };
+    return err($error) if $error;
+    return $code->($value);
+}
+
+# `pipeline` takes a list of function names and returns a new function.
+sub pipeline {
+    my (@f) = @_;
+
+    my @codes = map { ref $_ ? $_ : do { my $t = caller(0); $t->can($_) or croak "Function `$_` not found in $t" } } @f;
+
+    sub {
+        my ($value, $error) = @_;
+
+        if (CHECK_ENABLED) {
+            croak "pipelined function must be called in list context" unless wantarray;
+            croak "pipelined function arguments must be result such as (T, E) " unless @_ == 2;
+        }
+
+        return err($error) if $error;
+        for my $code (@codes) {
+            ($value, $error) = $code->($value);
+            return err($error) if $error;
+        }
+        return ok($value);
+    }
+}
+
 # `unsafe_nwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
 # It should be used in tests or debugging code.
 sub unsafe_unwrap {
@@ -185,7 +224,7 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 
 =head1 SYNOPSIS
 
-    use Result::Simple qw( ok err result_for );
+    use Result::Simple qw( ok err result_for chain pipeline);
     use Types::Standard -types;
 
     use kura Error   => Dict[message => Str];
@@ -219,7 +258,6 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
         my $req = shift;
         my $err;
 
-        # $req = validate_name($req); # => Throw error! It requires list context to handle error
         ($req, $err) = validate_name($req);
         return err($err) if $err;
 
@@ -237,6 +275,23 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
     $req2 # => undef;
     $err2 # => { message => 'Reserved name' };
 
+    # Following are the same as above but using `chain` and `pipeline` helper functions.
+
+    sub validate_req_with_chain {
+        my $req = shift;
+
+        my @r = ok($req);
+        @r = chain(validate_name => @r);
+        @r = chain(validate_age => @r);
+        return @r;
+    }
+
+    sub validate_req_with_pipeline {
+        my $req = shift;
+
+        state $code = pipeline qw( validate_name validate_age );
+        $code->(ok($req));
+    }
 
 =head1 DESCRIPTION
 
@@ -305,6 +360,39 @@ When a function never returns an error, you can set type E to C<undef>:
     sub double ($n) { ok($n * 2) }
 
 =back
+
+=head3 chain($function, $data, $err)
+
+C<chain> is a helper function for passing result type C<(T, E)> to the next function.
+
+If an error has already occurred (when C<$err> is defined), the new function won't be called and the same error will be returned as is.
+If there's no error, the given function will be applied to C<$data>, and its result C<(T, E)> will be returned.
+
+This is mainly suitable for use cases where functions need to be applied serially, such as in validation processing.
+
+Example:
+
+    my @r = ok($req);
+    @r = chain(validate_name => @r);
+    @r = chain(validate_age  => @r);
+    return @r;
+
+In this way, if a failure occurs along the way, the process stops at that point and the failure result is returned.
+
+=head3 pipeline(@functions)
+
+C<pipeline> is a helper function that generates a pipeline function that applies multiple functions in series.
+
+It returns a new function that applies the given list of functions in order. This generated function takes an argument in the form of C<(T, E)>,
+and if an error occurs during the process, it immediately halts processing as a failure. If processing succeeds all the way through, it returns C<ok($value)>.
+
+Example:
+
+    state $code = pipeline qw( validate_name validate_age );
+    my ($req, $err) = $code->($input);
+
+This allows you to describe multiple processes concisely as a single flow.
+Each function in the pipeline needs to return C<(T, E)>.
 
 =head3 unsafe_unwrap($data, $err)
 

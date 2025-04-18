@@ -6,7 +6,7 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 # SYNOPSIS
 
 ```perl
-use Result::Simple qw( ok err result_for );
+use Result::Simple qw( ok err result_for chain pipeline);
 use Types::Standard -types;
 
 use kura Error   => Dict[message => Str];
@@ -40,7 +40,6 @@ sub validate_req {
     my $req = shift;
     my $err;
 
-    # $req = validate_name($req); # => Throw error! It requires list context to handle error
     ($req, $err) = validate_name($req);
     return err($err) if $err;
 
@@ -57,6 +56,24 @@ $err1 # => undef;
 my ($req2, $err2) = validate_req({ name => 'root', age => 20 });
 $req2 # => undef;
 $err2 # => { message => 'Reserved name' };
+
+# Following are the same as above but using `chain` and `pipeline` helper functions.
+
+sub validate_req_with_chain {
+    my $req = shift;
+
+    my @r = ok($req);
+    @r = chain(validate_name => @r);
+    @r = chain(validate_age => @r);
+    return @r;
+}
+
+sub validate_req_with_pipeline {
+    my $req = shift;
+
+    state $code = pipeline qw( validate_name validate_age );
+    $code->(ok($req));
+}
 ```
 
 # DESCRIPTION
@@ -132,6 +149,43 @@ sub half ($n) {
     result_for bar => Int, undef;
     sub double ($n) { ok($n * 2) }
     ```
+
+### chain($function, $data, $err)
+
+`chain` is a helper function for passing result type `(T, E)` to the next function.
+
+If an error has already occurred (when `$err` is defined), the new function won't be called and the same error will be returned as is.
+If there's no error, the given function will be applied to `$data`, and its result `(T, E)` will be returned.
+
+This is mainly suitable for use cases where functions need to be applied serially, such as in validation processing.
+
+Example:
+
+```perl
+my @r = ok($req);
+@r = chain(validate_name => @r);
+@r = chain(validate_age  => @r);
+return @r;
+```
+
+In this way, if a failure occurs along the way, the process stops at that point and the failure result is returned.
+
+### pipeline(@functions)
+
+`pipeline` is a helper function that generates a pipeline function that applies multiple functions in series.
+
+It returns a new function that applies the given list of functions in order. This generated function takes an argument in the form of `(T, E)`,
+and if an error occurs during the process, it immediately halts processing as a failure. If processing succeeds all the way through, it returns `ok($value)`.
+
+Example:
+
+```perl
+state $code = pipeline qw( validate_name validate_age );
+my ($req, $err) = $code->($input);
+```
+
+This allows you to describe multiple processes concisely as a single flow.
+Each function in the pipeline needs to return `(T, E)`.
 
 ### unsafe\_unwrap($data, $err)
 
