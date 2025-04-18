@@ -10,7 +10,8 @@ use lib "t/lib";
 use TestType qw( Int NonEmptyStr );
 
 BEGIN {
-    $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
+    # Enable type check. The default is true.
+    # $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
 }
 
 use Result::Simple qw( ok err result_for );

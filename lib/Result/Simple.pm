@@ -14,8 +14,8 @@ use Sub::Util ();
 use Scalar::Util ();
 
 # If this option is true, then check `ok` and `err` functions usage and check a return value type.
-# However, it should be falsy for production code, because of performance and it is an assertion, not a validation.
-use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 0;
+# However, it should be falsy for production code, because of performance, and it is an assertion, not a validation.
+use constant CHECK_ENABLED => $ENV{RESULT_SIMPLE_CHECK_ENABLED} // 1;
 
 # err does not allow these values.
 use constant FALSY_VALUES => [0, '0', '', undef];
@@ -150,11 +150,8 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 
 =head1 SYNOPSIS
 
-    # Enable type check. The default is false.
-    BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
-
     use Test2::V0;
-    use Result::Simple;
+    use Result::Simple qw(ok err result_for);
     use Types::Common -types;
 
     use kura ErrorMessage => StrLength[3,];
@@ -178,7 +175,9 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
         return ok($age);
     }
 
-    sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
+    result_for new_user => ValidUser, ArrayRef[ErrorMessage];
+
+    sub new_user {
         my $args = shift;
         my @errors;
 
@@ -273,20 +272,14 @@ L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc.
 =head3 C<$ENV{RESULT_SIMPLE_CHECK_ENABLED}>
 
 If the C<ENV{RESULT_SIMPLE_CHECK_ENABLED}> environment is truthy before loading this module, it works as an assertion.
-Otherwise, if it is falsy, C<:Result(T, E)> attribute does nothing. The default is false.
-
-    sub invalid :Result(Int, undef) { ok("hello") }
-
-    my ($data, $err) = invalid();
-    # => throw exception when check enabled
-    # => no exception when check disabled
-
-The following code is an example to enable it:
-
-    BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = is_test ? 1 : 0 }
-    use Result::Simple;
-
+Otherwise, if it is falsy, C<result_for> attribute does nothing. The default is true.
 This option is useful for development and testing mode, and it recommended to set it to false for production.
+
+    result_for foo => Int, undef;
+    sub foo { ok("hello") }
+
+    my ($data, $err) = foo();
+    # => throw exception when check enabled
 
 =head1 NOTE
 
