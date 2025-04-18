@@ -138,6 +138,10 @@ subtest 'Test `result_for` function' => sub {
             my $proto = Sub::Util::prototype($code);
             is $proto, ';$';
         };
+
+        subtest 'When function is not found, then throw a exception' => sub {
+            like dies { result_for xxx => Int, NonEmptyStr } => qr/result_for: function `xxx` not found/;
+        };
     };
 };
 
