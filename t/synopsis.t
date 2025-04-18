@@ -46,6 +46,9 @@ sub validate_req {
     return ok($req);
 }
 
+# my $req = validate_req({ name => 'taro', age => 42 });
+# => Throw an exception, because `validate_req` requires calling in a list context to handle an error.
+
 my ($req1, $err1) = validate_req({ name => 'taro', age => 42 });
 is $req1, { name => 'taro', age => 42 };
 is $err1, undef;

@@ -49,6 +49,9 @@ sub validate_req {
     return ok($req);
 }
 
+# my $req = validate_req({ name => 'taro', age => 42 });
+# => Throw an exception, because `validate_req` requires calling in a list context to handle an error.
+
 my ($req1, $err1) = validate_req({ name => 'taro', age => 42 });
 $req1 # => { name => 'taro', age => 42 };
 $err1 # => undef;
@@ -86,7 +89,7 @@ This pattern is used in other languages such as F#, Rust, and Go.
 In Perl, this pattern is also useful, and this module provides a simple way to use it.
 This module does not wrap a return value in an object. Just return a tuple like `($data, undef)` or `(undef, $err)`.
 
-## EXPORT FUNCTIONS
+## FUNCTIONS
 
 ### ok($value)
 
@@ -162,10 +165,10 @@ This is mainly suitable for use cases where functions need to be applied seriall
 Example:
 
 ```perl
-my @r = ok($req);
-@r = chain(validate_name => @r);
-@r = chain(validate_age  => @r);
-return @r;
+my @result = ok($req);
+@result = chain(validate_name => @result);
+@result = chain(validate_age  => @result);
+return @result;
 ```
 
 In this way, if a failure occurs along the way, the process stops at that point and the failure result is returned.
@@ -192,13 +195,29 @@ Each function in the pipeline needs to return `(T, E)`.
 `unsafe_unwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
 It should be used in tests or debugging code.
 
+```perl
+sub div($a, $b) {
+    return err('Division by zero') if $b == 0;
+    return ok($a / $b);
+}
+
+unsafe_unwrap(div(4, 2)); # => 2
+unsafe_unwrap(div(4, 0)); # => throw an exception: Error called in `unsafe_unwrap`: "Division by zero"
+```
+
 ### unsafe\_unwrap\_err($data, $err)
 
 `unsafe_unwrap_err` takes a Result<T, E> and returns an E when the result is an Err, otherwise it throws exception.
 It should be used in tests or debugging code.
 
-Note that types require `check` method that returns true or false. So you can use your favorite type constraint module like
-[Type::Tiny](https://metacpan.org/pod/Type%3A%3ATiny), [Moose](https://metacpan.org/pod/Moose), [Mouse](https://metacpan.org/pod/Mouse) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc.
+```perl
+sub div($a, $b) {
+    return err('Division by zero') if $b == 0;
+    return ok($a / $b);
+}
+unsafe_unwrap_err(div(4, 2)); # => throw an exception: No error called in `unsafe_unwrap_err`: 2
+unsafe_unwrap_err(div(4, 0)); # => "Division by zero"
+```
 
 ## ENVIRONMENTS
 
@@ -217,6 +236,23 @@ my ($data, $err) = foo();
 ```
 
 # NOTE
+
+## Type constraint requires `check` method
+
+Perl has many type constraint modules, but this module requires the type constraint module that provides `check` method.
+So you can use [Type::Tiny](https://metacpan.org/pod/Type%3A%3ATiny), [Moose](https://metacpan.org/pod/Moose), [Mouse](https://metacpan.org/pod/Mouse) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc.
+
+## Use different function name
+
+Sometimes, you may want to use a different name for `ok`, `err`, or some other functions of `Result::Simple`.
+For example, `Test2::V0` has `ok` functions, so it conflicts with `ok` function of `Result::Simple`.
+This module provides a way to set a different function name using the `-as` option.
+
+```perl
+use Result::Simple
+    ok => { -as => 'left' },   # `left` is equivalent to `ok`
+    err => { -as => 'right' }; # `right` is equivalent to `err`
+```
 
 ## Avoiding Ambiguity in Result Handling
 
@@ -252,19 +288,6 @@ Here, the function returns a valid failure tuple `(undef, $err)`. However, it is
 The lack of `ok` or `err` makes the intent ambiguous.
 
 Conclusively, be sure to use `ok` or `err` functions to make it clear whether the success or failure is intentional.
-
-## Use alias name
-
-You can use alias name for `ok` and `err` functions like this:
-
-```perl
-use Result::Simple
-    ok => { -as => 'left' },
-    err => { -as => 'right' };
-
-left('foo'); # => ('foo', undef)
-right('bar'); # => (undef, 'bar')
-```
 
 # LICENSE
 
