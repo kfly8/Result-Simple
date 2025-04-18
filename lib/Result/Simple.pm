@@ -43,7 +43,18 @@ sub err {
 
 # result_for foo => (T, E);
 # This is used to define a function that returns a success or failure.
-# Example: `sub foo :Result(Int, Error)  { ... }`
+#
+# Example
+#
+#   result_for div => Int, ErrorMessage;
+#
+#   sub div {
+#     my ($a, $b) = @_;
+#     if ($b == 0) {
+#       return err('Division by zero');
+#     }
+#     return ok($a / $b);
+#   }
 sub result_for {
     unless (CHECK_ENABLED) {
         # This is a no-op if CHECK_ENABLED is false.
@@ -211,7 +222,7 @@ This module does not wrap a return value in an object. Just return a tuple like 
 
 =head2 EXPORT FUNCTIONS
 
-=head3 ok
+=head3 ok($value)
 
 Return a tuple of a given value and undef. When the function succeeds, it should return this.
 
@@ -219,7 +230,7 @@ Return a tuple of a given value and undef. When the function succeeds, it should
         ok($a + $b); # => ($a + $b, undef)
     }
 
-=head3 err
+=head3 err($error)
 
 Return a tuple of undef and a given error. When the function fails, it should return this.
 
@@ -230,13 +241,13 @@ Return a tuple of undef and a given error. When the function fails, it should re
 
 Note that the error value must be a truthy value, otherwise it will throw an exception.
 
-=head2 ATTRIBUTES
+=head3 result_for $function_name => $T, $E
 
-=head3 :Result(T, E)
+You can use the C<result_for> to define a function that returns a success or failure and asserts the return value types. Here is an example:
 
-You can use the C<:Result(T, E)> attribute to define a function that returns a success or failure and asserts the return value types. Here is an example:
+    result_for half => Int, ErrorMessage;
 
-    sub half :Result(Int, ErrorMessage) ($n) {
+    sub half ($n) {
         if ($n % 2) {
             return err('Odd number');
         } else {
@@ -255,12 +266,15 @@ When the function succeeds, then returns C<($data, undef)>, and C<$data> should 
 When the function fails, then returns C<(undef, $err)>, and C<$err> should satisfy this type.
 Additionally, type E must be truthy value to distinguish between success and failure.
 
-    sub foo :Result(Int, Str) ($input) { }
+    result_for foo => Int, Str;
+
+    sub foo ($input) { }
     # => throw exception: Result E should not allow falsy values: ["0"] because Str allows "0"
 
 When a function never returns an error, you can set type E to C<undef>:
 
-    sub double :Result(Int, undef) ($n) { ok($n * 2) }
+    result_for bar => Int, undef;
+    sub double ($n) { ok($n * 2) }
 
 =back
 
@@ -287,7 +301,9 @@ This option is useful for development and testing mode, and it recommended to se
 
 Forgetting to call C<ok> or C<err> function is a common mistake. Consider the following example:
 
-    sub validate_name :Result(Str, ErrorMessage) ($name) {
+    result_for validate_name => Str, ErrorMessage;
+
+    sub validate_name ($name) {
         return "Empty name" unless $name; # Oops! Forgot to call `err` function.
         return ok($name);
     }
@@ -298,7 +314,9 @@ Forgetting to call C<ok> or C<err> function is a common mistake. Consider the fo
 In this case, the function throws an exception because the return value is not a valid result tuple C<($data, undef)> or C<(undef, $err)>.
 This is fortunate, as the mistake is detected immediately. The following case is not detected:
 
-    sub foo :Result(Str, ErrorMessage) {
+    result_for foo => Str, ErrorMessage;
+
+    sub foo {
         return (undef, 'apple'); # No use of `ok` or `err` function.
     }
 
