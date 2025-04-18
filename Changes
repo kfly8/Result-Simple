@@ -2,6 +2,15 @@ Revision history for Perl extension Result-Simple
 
 {{$NEXT}}
 
+0.04 2025-04-18T22:53:43Z
+    - [BREAKING CHANGES]
+        - Renamed `Ok` to `ok`, `Err` to `err` #2
+        - Removed `:Result` attribute, instead added `result_for` function #2
+        - Changed default value of `$ENV{RESULT_SIMPLE_CHECK_ENABLED}` to `1` #2
+    - [ENHANCEMENTS]
+        - Added `unsafe_unwrap` and `unsafe_unwrap_err` functions #2
+        - Added `chain` and `pipeline` helper functions #3
+
 0.03 2024-11-27T01:18:40Z
     - Improve docs #1
 
