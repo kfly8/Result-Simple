@@ -4,9 +4,7 @@ use warnings;
 
 our $VERSION = "0.03";
 
-use Exporter 'import';
-
-our @EXPORT_OK = qw(
+use Exporter::Shiny qw(
     ok
     err
     result_for
@@ -363,6 +361,17 @@ Here, the function returns a valid failure tuple C<(undef, $err)>. However, it i
 The lack of C<ok> or C<err> makes the intent ambiguous.
 
 Conclusively, be sure to use C<ok> or C<err> functions to make it clear whether the success or failure is intentional.
+
+=head2 Use alias name
+
+You can use alias name for C<ok> and C<err> functions like this:
+
+    use Result::Simple
+        ok => { -as => 'left' },
+        err => { -as => 'right' };
+
+    left('foo'); # => ('foo', undef)
+    right('bar'); # => (undef, 'bar')
 
 =head1 LICENSE
 
