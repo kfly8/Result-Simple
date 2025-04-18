@@ -6,7 +6,13 @@ our $VERSION = "0.03";
 
 use Exporter 'import';
 
-our @EXPORT_OK = qw( ok err result_for );
+our @EXPORT_OK = qw(
+    ok
+    err
+    result_for
+    unsafe_unwrap
+    unsafe_unwrap_err
+);
 
 use Carp;
 use Scope::Upper ();
@@ -63,10 +69,10 @@ sub result_for {
 
     my ($function_name, $T, $E, %opts) = @_;
 
-    my @caller = caller($opts{caller_level} || 0);
-    my $package = $opts{package} || $caller[0];
+    my @caller   = caller($opts{caller_level} || 0);
+    my $package  = $opts{package} || $caller[0];
     my $filename = $caller[1];
-    my $line = $caller[2];
+    my $line     = $caller[2];
 
     my $code = $package->can($function_name);
 
@@ -134,6 +140,26 @@ sub wrap_code {
     no strict qw(refs);
     no warnings qw(redefine);
     *{$fullname} = $wrapped;
+}
+
+# `unsafe_nwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
+# It should be used in tests or debugging code.
+sub unsafe_unwrap {
+    my ($value, $err) = @_;
+    if ($err) {
+        croak "Error called in `unsafe_unwrap`: @{[ _ddf($err) ]}"
+    }
+    return $value;
+}
+
+# `unsafe_unwrap_err` takes a Result<T, E> and returns an E when the result is an Err, otherwise it throws exception.
+# It should be used in tests or debugging code.
+sub unsafe_unwrap_err {
+    my ($value, $err) = @_;
+    if (!$err) {
+        croak "No error called in `unsafe_unwrap_err`: @{[ _ddf($value) ]}"
+    }
+    return $err;
 }
 
 # Dump data for debugging.
@@ -275,6 +301,16 @@ When a function never returns an error, you can set type E to C<undef>:
 
     result_for bar => Int, undef;
     sub double ($n) { ok($n * 2) }
+
+=head3 unsafe_unwrap($data, $err)
+
+C<unsafe_unwrap> takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
+It should be used in tests or debugging code.
+
+=head3 unsafe_unwrap_err($data, $err)
+
+C<unsafe_unwrap_err> takes a Result<T, E> and returns an E when the result is an Err, otherwise it throws exception.
+It should be used in tests or debugging code.
 
 =back
 

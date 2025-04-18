@@ -14,7 +14,7 @@ BEGIN {
     # $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
 }
 
-use Result::Simple qw( ok err result_for );
+use Result::Simple qw( ok err result_for unsafe_unwrap unsafe_unwrap_err );
 
 subtest 'Test `ok` and `err` functions' => sub {
     subtest '`ok` and `err` functions just return values' => sub {
@@ -140,5 +140,27 @@ subtest 'Test `result_for` function' => sub {
         };
     };
 };
+
+subtest 'Test `unsafe_unwrap` function' => sub {
+    subtest 'When ok() is called, then return the value' => sub {
+        my $got = unsafe_unwrap(ok(42));
+        is $got, 42;
+    };
+
+    subtest 'When err() is called, then throw a exception' => sub {
+        like dies { my ($data, $err) = unsafe_unwrap(err('foo')) }, qr/Error called in `unsafe_unwrap`/;
+    };
+};
+
+subtest 'Test `unsafe_unwrap_err` function' => sub {
+    subtest 'When ok() is called, then throw a exception' => sub {
+        like dies { my ($data, $err) = unsafe_unwrap_err(ok(42)) }, qr/No error called in `unsafe_unwrap_err`/;
+    };
+    subtest 'When err() is called, then return the value' => sub {
+        my $got = unsafe_unwrap_err(err('foo'));
+        is $got, 'foo';
+    };
+};
+
 
 done_testing;
