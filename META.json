@@ -42,6 +42,7 @@
       },
       "runtime" : {
          "requires" : {
+            "Exporter::Tiny" : "0",
             "Scope::Upper" : "0",
             "Sub::Util" : "0",
             "perl" : "5.014004"

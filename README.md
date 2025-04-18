@@ -6,11 +6,8 @@ Result::Simple - A dead simple perl-ish Result like F#, Rust, Go, etc.
 # SYNOPSIS
 
 ```perl
-# Enable type check. The default is false.
-BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1 }
-
 use Test2::V0;
-use Result::Simple;
+use Result::Simple qw(ok err result_for);
 use Types::Common -types;
 
 use kura ErrorMessage => StrLength[3,];
@@ -20,21 +17,23 @@ use kura ValidUser    => Dict[name => ValidName, age => ValidAge];
 
 sub validate_name {
     my $name = shift;
-    return Err('No name') unless defined $name;
-    return Err('Empty name') unless length $name;
-    return Err('Reserved name') if $name eq 'root';
-    return Ok($name);
+    return err('No name') unless defined $name;
+    return err('Empty name') unless length $name;
+    return err('Reserved name') if $name eq 'root';
+    return ok($name);
 }
 
 sub validate_age {
     my $age = shift;
-    return Err('No age') unless defined $age;
-    return Err('Invalid age') unless $age =~ /\A\d+\z/;
-    return Err('Too young age') if $age < 18;
-    return Ok($age);
+    return err('No age') unless defined $age;
+    return err('Invalid age') unless $age =~ /\A\d+\z/;
+    return err('Too young age') if $age < 18;
+    return ok($age);
 }
 
-sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
+result_for new_user => ValidUser, ArrayRef[ErrorMessage];
+
+sub new_user {
     my $args = shift;
     my @errors;
 
@@ -44,8 +43,8 @@ sub new_user :Result(ValidUser, ArrayRef[ErrorMessage]) {
     my ($age, $age_err) = validate_age($args->{age});
     push @errors, $age_err if $age_err;
 
-    return Err(\@errors) if @errors;
-    return Ok({ name => $name, age => $age });
+    return err(\@errors) if @errors;
+    return ok({ name => $name, age => $age });
 }
 
 my ($user1, $err1) = new_user({ name => 'taro', age => 42 });
@@ -69,41 +68,41 @@ This module does not wrap a return value in an object. Just return a tuple like 
 
 ## EXPORT FUNCTIONS
 
-### Ok
+### ok($value)
 
 Return a tuple of a given value and undef. When the function succeeds, it should return this.
 
 ```perl
 sub add($a, $b) {
-    Ok($a + $b); # => ($a + $b, undef)
+    ok($a + $b); # => ($a + $b, undef)
 }
 ```
 
-### Err
+### err($error)
 
 Return a tuple of undef and a given error. When the function fails, it should return this.
 
 ```perl
 sub div($a, $b) {
-    return Err('Division by zero') if $b == 0; # => (undef, 'Division by zero')
-    Ok($a / $b);
+    return err('Division by zero') if $b == 0; # => (undef, 'Division by zero')
+    ok($a / $b);
 }
 ```
 
 Note that the error value must be a truthy value, otherwise it will throw an exception.
 
-## ATTRIBUTES
+### result\_for $function\_name => $T, $E
 
-### :Result(T, E)
-
-You can use the `:Result(T, E)` attribute to define a function that returns a success or failure and asserts the return value types. Here is an example:
+You can use the `result_for` to define a function that returns a success or failure and asserts the return value types. Here is an example:
 
 ```perl
-sub half :Result(Int, ErrorMessage) ($n) {
+result_for half => Int, ErrorMessage;
+
+sub half ($n) {
     if ($n % 2) {
-        return Err('Odd number');
+        return err('Odd number');
     } else {
-        return Ok($n / 2);
+        return ok($n / 2);
     }
 }
 ```
@@ -118,15 +117,28 @@ sub half :Result(Int, ErrorMessage) ($n) {
     Additionally, type E must be truthy value to distinguish between success and failure.
 
     ```perl
-    sub foo :Result(Int, Str) ($input) { }
+    result_for foo => Int, Str;
+
+    sub foo ($input) { }
     # => throw exception: Result E should not allow falsy values: ["0"] because Str allows "0"
     ```
 
     When a function never returns an error, you can set type E to `undef`:
 
     ```perl
-    sub double :Result(Int, undef) ($n) { Ok($n * 2) }
+    result_for bar => Int, undef;
+    sub double ($n) { ok($n * 2) }
     ```
+
+### unsafe\_unwrap($data, $err)
+
+`unsafe_unwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
+It should be used in tests or debugging code.
+
+### unsafe\_unwrap\_err($data, $err)
+
+`unsafe_unwrap_err` takes a Result<T, E> and returns an E when the result is an Err, otherwise it throws exception.
+It should be used in tests or debugging code.
 
 Note that types require `check` method that returns true or false. So you can use your favorite type constraint module like
 [Type::Tiny](https://metacpan.org/pod/Type%3A%3ATiny), [Moose](https://metacpan.org/pod/Moose), [Mouse](https://metacpan.org/pod/Mouse) or [Data::Checks](https://metacpan.org/pod/Data%3A%3AChecks) etc.
@@ -136,35 +148,29 @@ Note that types require `check` method that returns true or false. So you can us
 ### `$ENV{RESULT_SIMPLE_CHECK_ENABLED}`
 
 If the `ENV{RESULT_SIMPLE_CHECK_ENABLED}` environment is truthy before loading this module, it works as an assertion.
-Otherwise, if it is falsy, `:Result(T, E)` attribute does nothing. The default is false.
-
-```perl
-sub invalid :Result(Int, undef) { Ok("hello") }
-
-my ($data, $err) = invalid();
-# => throw exception when check enabled
-# => no exception when check disabled
-```
-
-The following code is an example to enable it:
-
-```perl
-BEGIN { $ENV{RESULT_SIMPLE_CHECK_ENABLED} = is_test ? 1 : 0 }
-use Result::Simple;
-```
-
+Otherwise, if it is falsy, `result_for` attribute does nothing. The default is true.
 This option is useful for development and testing mode, and it recommended to set it to false for production.
+
+```perl
+result_for foo => Int, undef;
+sub foo { ok("hello") }
+
+my ($data, $err) = foo();
+# => throw exception when check enabled
+```
 
 # NOTE
 
 ## Avoiding Ambiguity in Result Handling
 
-Forgetting to call `Ok` or `Err` function is a common mistake. Consider the following example:
+Forgetting to call `ok` or `err` function is a common mistake. Consider the following example:
 
 ```perl
-sub validate_name :Result(Str, ErrorMessage) ($name) {
-    return "Empty name" unless $name; # Oops! Forgot to call `Err` function.
-    return Ok($name);
+result_for validate_name => Str, ErrorMessage;
+
+sub validate_name ($name) {
+    return "Empty name" unless $name; # Oops! Forgot to call `err` function.
+    return ok($name);
 }
 
 my ($name, $err) = validate_name('');
@@ -175,8 +181,10 @@ In this case, the function throws an exception because the return value is not a
 This is fortunate, as the mistake is detected immediately. The following case is not detected:
 
 ```perl
-sub foo :Result(Str, ErrorMessage) {
-    return (undef, 'apple'); # No use of `Ok` or `Err` function.
+result_for foo => Str, ErrorMessage;
+
+sub foo {
+    return (undef, 'apple'); # No use of `ok` or `err` function.
 }
 
 my ($data, $err) = foo;
@@ -184,9 +192,22 @@ my ($data, $err) = foo;
 ```
 
 Here, the function returns a valid failure tuple `(undef, $err)`. However, it is unclear whether this was intentional or a mistake.
-The lack of `Ok` or `Err` makes the intent ambiguous.
+The lack of `ok` or `err` makes the intent ambiguous.
 
-Conclusively, be sure to use `Ok` or `Err` functions to make it clear whether the success or failure is intentional.
+Conclusively, be sure to use `ok` or `err` functions to make it clear whether the success or failure is intentional.
+
+## Use alias name
+
+You can use alias name for `ok` and `err` functions like this:
+
+```perl
+use Result::Simple
+    ok => { -as => 'left' },
+    err => { -as => 'right' };
+
+left('foo'); # => ('foo', undef)
+right('bar'); # => (undef, 'bar')
+```
 
 # LICENSE
 

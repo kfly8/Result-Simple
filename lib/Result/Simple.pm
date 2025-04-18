@@ -300,6 +300,8 @@ When a function never returns an error, you can set type E to C<undef>:
     result_for bar => Int, undef;
     sub double ($n) { ok($n * 2) }
 
+=back
+
 =head3 unsafe_unwrap($data, $err)
 
 C<unsafe_unwrap> takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
@@ -309,8 +311,6 @@ It should be used in tests or debugging code.
 
 C<unsafe_unwrap_err> takes a Result<T, E> and returns an E when the result is an Err, otherwise it throws exception.
 It should be used in tests or debugging code.
-
-=back
 
 Note that types require C<check> method that returns true or false. So you can use your favorite type constraint module like
 L<Type::Tiny>, L<Moose>, L<Mouse> or L<Data::Checks> etc.
