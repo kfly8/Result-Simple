@@ -315,6 +315,16 @@ use Result::Simple
     err => { -as => 'right' }; # `right` is equivalent to `err`
 ```
 
+## Check unhandled error
+
+[Perl::Critic::Policy::Variables::ProhibitUnusedVarsStricter](https://metacpan.org/pod/Perl%3A%3ACritic%3A%3APolicy%3A%3AVariables%3A%3AProhibitUnusedVarsStricter) is useful to check unhandled error at compile time.
+
+```perl
+use Result::Simple;
+my ($v, $e) = ok(2); # => Critic: $e is declared but not used (Variables::ProhibitUnusedVarsStricter, Severity: 3)
+print $v;
+```
+
 ## Avoiding Ambiguity in Result Handling
 
 Forgetting to call `ok` or `err` function is a common mistake. Consider the following example:

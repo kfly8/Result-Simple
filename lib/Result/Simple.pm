@@ -570,6 +570,14 @@ This module provides a way to set a different function name using the C<-as> opt
         ok => { -as => 'left' },   # `left` is equivalent to `ok`
         err => { -as => 'right' }; # `right` is equivalent to `err`
 
+=head2 Check unhandled error
+
+L<Perl::Critic::Policy::Variables::ProhibitUnusedVarsStricter> is useful to check unhandled error at compile time.
+
+    use Result::Simple;
+    my ($v, $e) = ok(2); # => Critic: $e is declared but not used (Variables::ProhibitUnusedVarsStricter, Severity: 3)
+    print $v;
+
 =head2 Avoiding Ambiguity in Result Handling
 
 Forgetting to call C<ok> or C<err> function is a common mistake. Consider the following example:
