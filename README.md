@@ -190,6 +190,67 @@ my ($req, $err) = $code->($input);
 This allows you to describe multiple processes concisely as a single flow.
 Each function in the pipeline needs to return `(T, E)`.
 
+### combine(@results)
+
+`combine` takes a list of Result like `((T1,E1), (T2,E2), (T3,E3))` and returns a new Result like `([T1,T2,T3], E)`.
+
+If all Result values are successful, it returns a new Result with all success values collected into an array reference. If any Result has an error, the function short-circuits and returns the first error encountered.
+
+This is useful when you need to collect the results of multiple operations that all need to succeed, similar to how `Promise.all` works in JavaScript. For example, when fetching data from multiple sources or validating multiple aspects of input data.
+
+Example:
+
+```perl
+sub fetch_user { ... }       # Returns Result<User, Error>
+sub fetch_orders { ... }     # Returns Result<Order[], Error>
+sub fetch_settings { ... }   # Returns Result<Settings, Error>
+
+my ($data, $err) = combine(
+    fetch_user($user_id),
+    fetch_orders($user_id),
+    fetch_settings($user_id)
+);
+
+if ($err) {
+    # Handle error
+} else {
+    my ($user, $orders, $settings) = @$data;
+    # Process all successful results
+}
+```
+
+### combine\_with\_all\_errors(@results)
+
+`combine_with_all_errors` takes a list of Result like `((T1,E1), (T2,E2), (T3,E3))` and returns a new Result.
+
+Unlike `combine` which stops at the first error, this function collects all errors from the input Results. If all Results are successful, it returns `([T1,T2,T3], undef)`. If any Results have errors, it returns `(undef, [E1,E2,E3])` with an array reference containing all encountered errors.
+
+This is particularly useful for validation scenarios where you want to report all validation errors at once rather than one at a time. For example, when validating a form, you might want to show the user all fields that have errors rather than making them fix one error at a time.
+
+Example:
+
+```perl
+sub validate_name { ... }    # Returns Result<Name, Error>
+sub validate_email { ... }   # Returns Result<Email, Error>
+sub validate_age { ... }     # Returns Result<Age, Error>
+
+my ($data, $errors) = combine_with_all_errors(
+    validate_name($form->{name}),
+    validate_email($form->{email}),
+    validate_age($form->{age})
+);
+
+if ($errors) {
+    # Show all validation errors to the user
+    for my $error (@$errors) {
+        print "Error: $error->{message}\n";
+    }
+} else {
+    my ($name, $email, $age) = @$data;
+    # Process valid form data
+}
+```
+
 ### unsafe\_unwrap($data, $err)
 
 `unsafe_unwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
