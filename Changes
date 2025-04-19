@@ -2,6 +2,11 @@ Revision history for Perl extension Result-Simple
 
 {{$NEXT}}
 
+0.05 2025-04-19T23:07:50Z
+    - Improve stactrace #4
+    - [ENHANCEMENTS]
+      - Added `combine` and `combine_with_all_errors`` helpers #5
+
 0.04 2025-04-18T22:53:43Z
     - [BREAKING CHANGES]
         - Renamed `Ok` to `ok`, `Err` to `err` #2
