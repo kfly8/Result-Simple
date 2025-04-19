@@ -14,7 +14,7 @@ BEGIN {
     # $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
 }
 
-use Result::Simple qw( ok err result_for unsafe_unwrap unsafe_unwrap_err chain pipeline );
+use Result::Simple qw( ok err result_for unsafe_unwrap unsafe_unwrap_err chain pipeline combine combine_with_all_errors );
 
 subtest 'Test `ok` and `err` functions' => sub {
     subtest '`ok` and `err` functions just return values' => sub {
@@ -260,6 +260,37 @@ subtest 'Test `pipeline` function' => sub {
         note $errors[1];
         note $errors[2];
     }
+};
+
+subtest 'Test `combine`` function' => sub {
+    subtest 'All ok()' => sub {
+        my ($v, $e) = combine( ok(3), ok(4), ok(5) );
+        is $v, [3, 4, 5];
+        is $e, undef;
+    };
+
+    subtest 'When err are included, then return the first error' => sub {
+        my ($v, $e) = combine( ok(3), err('foo'), ok(5), err('bar') );
+        is $v, undef;
+        is $e, 'foo';
+    };
+
+    like dies { my $v = combine( ok(3), 4, ok(5) ) }, qr/`combine` must be called in list context/;
+    like dies { my ($v, $e) = combine( ok(3), 4 ) }, qr/`combine` arguments must be Result list/;
+};
+
+subtest 'Test `combine_with_all_errors` with pipeline' => sub {
+    subtest 'All ok()' => sub {
+        my ($v, $e) = combine_with_all_errors( ok(3), ok(4), ok(5) );
+        is $v, [3, 4, 5];
+        is $e, undef;
+    };
+
+    subtest 'When err are included, then return all errors' => sub {
+        my ($v, $e) = combine_with_all_errors( ok(3), err('foo'), ok(5), err('bar') );
+        is $v, undef;
+        is $e, ['foo', 'bar'];
+    };
 };
 
 done_testing;

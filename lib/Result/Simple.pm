@@ -10,6 +10,8 @@ use Exporter::Shiny qw(
     result_for
     chain
     pipeline
+    combine
+    combine_with_all_errors
     unsafe_unwrap
     unsafe_unwrap_err
 );
@@ -192,6 +194,49 @@ sub pipeline {
     Sub::Util::set_subname($fullname, $pipelined);
 
     return $pipelined;
+}
+
+# `combine` takes a list of Result like `((T1,E1), (T2,E2), (T3,E3))` and returns a new Result like `([T1,T2,T3], E)`.
+sub combine {
+    my @results = @_;
+
+    if (CHECK_ENABLED) {
+        croak "`combine` must be called in list context" unless wantarray;
+        croak "`combine` arguments must be Result list" unless @_ % 2 == 0;
+    }
+
+    my @values;
+    for (my $i = 0; $i < @results; $i += 2) {
+        my ($value, $error) = @results[$i, $i + 1];
+        if ($error) {
+            return err($error);
+        }
+        push @values, $value;
+    }
+    return ok(\@values);
+}
+
+# `combine_with_all_errors` takes a list of Result like `((T1,E1), (T2,E2), (T3,E3))` and returns a new Result like `([T1,T2,T3], [E1,E2,E3])`.
+sub combine_with_all_errors {
+    my @results = @_;
+
+    if (CHECK_ENABLED) {
+        croak "`combine_with_all_errors` must be called in list context" unless wantarray;
+        croak "`combine_with_all_errors` arguments must be Result list" unless @_ % 2 == 0;
+    }
+
+    my @values;
+    my @errors;
+    for (my $i = 0; $i < @results; $i += 2) {
+        my ($value, $err) = @results[$i, $i + 1];
+        if ($err) {
+            push @errors, $err;
+        } else {
+            push @values, $value;
+        }
+    }
+    return err(\@errors) if @errors;
+    return ok(\@values);
 }
 
 # `unsafe_nwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
@@ -411,6 +456,63 @@ Example:
 
 This allows you to describe multiple processes concisely as a single flow.
 Each function in the pipeline needs to return C<(T, E)>.
+
+=head3 combine(@results)
+
+C<combine> takes a list of Result like C<((T1,E1), (T2,E2), (T3,E3))> and returns a new Result like C<([T1,T2,T3], E)>.
+
+If all Result values are successful, it returns a new Result with all success values collected into an array reference. If any Result has an error, the function short-circuits and returns the first error encountered.
+
+This is useful when you need to collect the results of multiple operations that all need to succeed, similar to how C<Promise.all> works in JavaScript. For example, when fetching data from multiple sources or validating multiple aspects of input data.
+
+Example:
+
+    sub fetch_user { ... }       # Returns Result<User, Error>
+    sub fetch_orders { ... }     # Returns Result<Order[], Error>
+    sub fetch_settings { ... }   # Returns Result<Settings, Error>
+
+    my ($data, $err) = combine(
+        fetch_user($user_id),
+        fetch_orders($user_id),
+        fetch_settings($user_id)
+    );
+
+    if ($err) {
+        # Handle error
+    } else {
+        my ($user, $orders, $settings) = @$data;
+        # Process all successful results
+    }
+
+=head3 combine_with_all_errors(@results)
+
+C<combine_with_all_errors> takes a list of Result like C<((T1,E1), (T2,E2), (T3,E3))> and returns a new Result.
+
+Unlike C<combine> which stops at the first error, this function collects all errors from the input Results. If all Results are successful, it returns C<([T1,T2,T3], undef)>. If any Results have errors, it returns C<(undef, [E1,E2,E3])> with an array reference containing all encountered errors.
+
+This is particularly useful for validation scenarios where you want to report all validation errors at once rather than one at a time. For example, when validating a form, you might want to show the user all fields that have errors rather than making them fix one error at a time.
+
+Example:
+
+    sub validate_name { ... }    # Returns Result<Name, Error>
+    sub validate_email { ... }   # Returns Result<Email, Error>
+    sub validate_age { ... }     # Returns Result<Age, Error>
+
+    my ($data, $errors) = combine_with_all_errors(
+        validate_name($form->{name}),
+        validate_email($form->{email}),
+        validate_age($form->{age})
+    );
+
+    if ($errors) {
+        # Show all validation errors to the user
+        for my $error (@$errors) {
+            print "Error: $error->{message}\n";
+        }
+    } else {
+        my ($name, $email, $age) = @$data;
+        # Process valid form data
+    }
 
 =head3 unsafe_unwrap($data, $err)
 
