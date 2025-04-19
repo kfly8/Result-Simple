@@ -144,25 +144,34 @@ sub wrap_code {
 
 # `chain` takes a function name and a result tuple (T, E) and returns a new result tuple (T, E).
 sub chain {
-    my ($f, $value, $error) = @_;
+    my ($function, $value, $error) = @_;
 
     if (CHECK_ENABLED) {
         croak "`chain` must be called in list context" unless wantarray;
         croak "`chain` arguments must be func and result like (func, T, E)" unless @_ == 3;
     }
 
-    my $code = ref $f ? $f : do { my $t = caller(0); $t->can($f) or croak "Function `$f` not found in $t" };
+    my $code = ref $function ? $function : do {
+        my $caller = caller(0);
+        $caller->can($function) or croak "Function `$function` not found in $caller";
+    };
     return err($error) if $error;
     return $code->($value);
 }
 
 # `pipeline` takes a list of function names and returns a new function.
 sub pipeline {
-    my (@f) = @_;
+    my (@functions) = @_;
 
-    my @codes = map { ref $_ ? $_ : do { my $t = caller(0); $t->can($_) or croak "Function `$_` not found in $t" } } @f;
+    my @codes = map {
+        my $f = $_;
+        ref $f ? $f : do {
+            my $caller = caller(0);
+            $caller->can($f) or croak "Function `$f` not found in $caller";
+        };
+    } @functions;
 
-    sub {
+    my $pipelined = sub {
         my ($value, $error) = @_;
 
         if (CHECK_ENABLED) {
@@ -176,7 +185,13 @@ sub pipeline {
             return err($error) if $error;
         }
         return ok($value);
-    }
+    };
+
+    my ($package, $file, $line) = caller(0);
+    my $fullname = "$package\::__PIPELINED_FUNCTION__";
+    Sub::Util::set_subname($fullname, $pipelined);
+
+    return $pipelined;
 }
 
 # `unsafe_nwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.

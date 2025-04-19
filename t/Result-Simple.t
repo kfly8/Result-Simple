@@ -4,7 +4,7 @@ Test the Result::Simple module with CHECK_ENABLED is truthy.
 
 =cut
 
-use Test2::V0 qw(subtest is like unlike dies done_testing);
+use Test2::V0 qw(subtest is like unlike dies note done_testing);
 
 use lib "t/lib";
 use TestType qw( Int NonEmptyStr );
@@ -111,17 +111,23 @@ subtest 'Test `result_for` function' => sub {
     };
 
     subtest 'Test the details of `retsult_for` function' => sub {
-        subtest 'Useful stacktrace' => sub {
-
+        subtest 'stacktrace' => sub {
             result_for test_stacktrace => Int, NonEmptyStr;
             sub test_stacktrace { Carp::confess('hello') }
 
+            local $@;
             eval { my ($data, $err) = test_stacktrace() };
+            my $error = $@;
+            my @errors = split /\n/, $error;
 
             my $file = __FILE__;
-            like $@, qr!hello at $file line!;
-            like $@, qr/main::test_stacktrace\(\) called at $file line /, 'stacktrace includes function name';
-            unlike $@, qr/Result::Simple::/, 'stacktrace does not include Result::Simple by Scope::Upper';
+            my $line = __LINE__;
+
+            like $errors[0], qr!hello at $file line @{[$line - 8]}!;
+            like $errors[1], qr!test_stacktrace\(\) called at $file line @{[$line - 5]}!, 'stacktrace includes function name';
+            unlike $error, qr!Result/Simple.pm!, 'stacktrace does not include Result::Simple';
+            note $errors[0];
+            note $errors[1];
         };
 
         subtest 'Same subname and prototype as original' => sub {
@@ -188,6 +194,26 @@ subtest 'Test `chain` function' => sub {
     like dies { my $v = chain(chain_test => 1, 2) }, qr/`chain` must be called in list context/;
     like dies { my ($v, $e) = chain(chain_test => 1) }, qr/`chain` arguments must be func and result/;
     like dies { my ($v, $e) = chain(unknown => 1, 2) }, qr/Function `unknown` not found in main/;
+
+    subtest 'stacktrace' => sub {
+        sub chain_stacktrace { Carp::confess('hello') }
+
+        local $@;
+        eval { my ($v, $e) = chain(chain_stacktrace => ok(8)) };
+        my $error = $@;
+        my @errors = split /\n/, $error;
+
+        my $file = __FILE__;
+        my $line = __LINE__;
+
+        like $errors[0], qr!hello at $file line @{[$line - 8]}!, 'Throw an exception at `chain_stacktrace` function';
+        like $errors[1], qr!chain_stacktrace\(8\) called at .+/Result/Simple.pm!;
+        like $errors[2], qr!chain\(["']chain_stacktrace["'], 8, undef\) called at $file line @{[$line - 5]}!;
+
+        note $errors[0];
+        note $errors[1];
+        note $errors[2];
+    }
 };
 
 subtest 'Test `pipeline` function' => sub {
@@ -213,6 +239,27 @@ subtest 'Test `pipeline` function' => sub {
     like dies { my $v = $code->(1, 2) }, qr/pipelined function must be called in list context/;
     like dies { my ($v, $e) = $code->(1) }, qr/pipelined function arguments must be result/;
     like dies { my $c = pipeline qw( unknown ) }, qr/Function `unknown` not found in main/;
+
+    subtest 'stacktrace' => sub {
+        sub pipeline_stacktrace { Carp::confess('hello') }
+
+        my $pipelined = pipeline qw( pipeline_test pipeline_stacktrace );
+
+        local $@;
+        eval { my ($v, $e) = $pipelined->(ok(8)) };
+        my $error = $@;
+        my @errors = split /\n/, $error;
+
+        my $file = __FILE__;
+        my $line = __LINE__;
+
+        like $errors[0], qr!hello at $file line @{[$line - 10]}!, 'Throw an exception at `pline_stacktrace` function';
+        like $errors[1], qr!pipeline_stacktrace\(4\) called!;
+        like $errors[2], qr!__PIPELINED_FUNCTION__\(8, undef\) called at $file line @{[$line - 5]}!;
+        note $errors[0];
+        note $errors[1];
+        note $errors[2];
+    }
 };
 
 done_testing;

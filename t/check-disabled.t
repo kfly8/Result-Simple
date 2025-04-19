@@ -5,7 +5,7 @@ These tests are same cases as Result-Simple.t, but CHECK_ENABLED is falsy.
 
 =cut
 
-use Test2::V0 qw(subtest is like unlike lives done_testing);
+use Test2::V0 qw(subtest is like unlike lives dies note done_testing);
 use Test2::V0 ok => { -as => 'test_ok' };
 
 use lib "t/lib";
@@ -83,16 +83,21 @@ subtest 'Test `result_for` function' => sub {
     subtest 'Test the details of `retsult_for` function' => sub {
         # 'When CHECK_ENABLED is falsy, then do not wrap the original function';
 
-        subtest 'Useful stacktrace' => sub {
+        subtest 'stacktrace' => sub {
             result_for test_stacktrace => Int, NonEmptyStr;
             sub test_stacktrace { Carp::confess('hello') }
 
-            eval { my ($data, $err) = test_stacktrace() };
+            my $error = dies { my ($data, $err) = test_stacktrace() };
+            my @errors = split /\n/, $error;
 
             my $file = __FILE__;
-            like $@, qr!hello at $file line!;
-            like $@, qr/main::test_stacktrace\(\) called at $file line /, 'stacktrace includes function name';
-            unlike $@, qr/Result::Simple::/, 'stacktrace does not include Result::Simple by Scope::Upper';
+            my $line = __LINE__;
+
+            like $errors[0], qr!hello at $file line @{[$line - 6]}!;
+            like $errors[1], qr!test_stacktrace\(\) called at $file line @{[$line - 4]}!, 'stacktrace includes function name';
+            unlike $error, qr!Result/Simple.pm!, 'stacktrace does not include Result::Simple';
+            note $errors[0];
+            note $errors[1];
         };
 
         subtest 'Same subname and prototype as original' => sub {
