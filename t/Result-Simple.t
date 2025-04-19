@@ -208,7 +208,7 @@ subtest 'Test `chain` function' => sub {
 
         like $errors[0], qr!hello at $file line @{[$line - 8]}!, 'Throw an exception at `chain_stacktrace` function';
         like $errors[1], qr!chain_stacktrace\(8\) called at .+/Result/Simple.pm!;
-        like $errors[2], qr!chain\("chain_stacktrace", 8, undef\) called at $file line @{[$line - 5]}!;
+        like $errors[2], qr!chain\(["']chain_stacktrace["'], 8, undef\) called at $file line @{[$line - 5]}!;
 
         note $errors[0];
         note $errors[1];
