@@ -251,6 +251,51 @@ if ($errors) {
 }
 ```
 
+### flatten(@results)
+
+`flatten` takes a list of array references that contain Result tuples and flattens them into a single list of Result tuples.
+
+For example, it converts `([T1,E1], [T2,E2], [T3,E3])` to `(T1,E1, T2,E2, T3,E3)`.
+
+This is useful when you have multiple arrays of Results that you need to combine or process together.
+
+Example:
+
+```perl
+my @result1 = ok(1);
+my @result2 = ok(2);
+my @result3 = ok(3);
+
+my @all_results = flatten([\@result1], [\@result2], [\@result3]);
+# @all_results is now (1,undef, 2,undef, 3,undef)
+
+# You can use it with combine:
+my ($values, $error) = combine(flatten([\@result1], [\@result2], [\@result3]));
+# $values is [1, 2, 3], $error is undef
+```
+
+### match($on\_success, $on\_failure)
+
+`match` provides a way to handle both success and failure cases of a Result in a functional style, similar to pattern matching in other languages.
+
+It takes two callbacks:
+\- `$on_success`: a function that receives the success value
+\- `$on_failure`: a function that receives the error value
+
+`match` returns a new function that will call the appropriate callback depending on whether the Result passed to it represents success or failure.
+
+Example:
+
+```perl
+my $handler = match(
+    sub { my $value = shift; "Success: The value is $value" },
+    sub { my $error = shift; "Error: $error occurred" }
+);
+
+$handler->(ok(42));               # => Success: The value is 42
+$handler->(err("Invalid input")); # => Error: Invalid input occurred
+```
+
 ### unsafe\_unwrap($data, $err)
 
 `unsafe_unwrap` takes a Result<T, E> and returns a T when the result is an Ok, otherwise it throws exception.
@@ -324,6 +369,93 @@ use Result::Simple;
 my ($v, $e) = ok(2); # => Critic: $e is declared but not used (Variables::ProhibitUnusedVarsStricter, Severity: 3)
 print $v;
 ```
+
+## Using Result::Simple with Promises for asynchronous operations
+
+Result::Simple can be combined with Promise-based asynchronous operations to create clean, functional error handling in asynchronous code. Here's an example using Mojo::Promise:
+
+```perl
+use Mojo::Promise;
+use Mojo::UserAgent;
+use Result::Simple qw(ok err combine flatten match);
+
+my $ua = Mojo::UserAgent->new;
+
+# Convert HTTP responses to Result tuples
+sub fetch_result {
+    my $uri = shift;
+    $ua->get_p($uri)->then(
+        sub {
+            my $tx = shift;
+            my $res = $tx->result;
+            if ($res->is_success) {
+                return ok($res->json);  # Success case with parsed JSON
+            } else {
+                return err({            # Error case with details
+                    uri => $uri,
+                    code => $res->code,
+                });
+            }
+        }
+    )->catch(
+        sub {
+            my $err = shift;
+            return err($err);           # Connection/network errors
+        }
+    );
+}
+
+# Fetch a specific todo item
+sub fetch_todo {
+    my $id = shift;
+    my $uri = "https://jsonplaceholder.typicode.com/todos/${id}";
+    fetch_result($uri);
+}
+
+# Fetch multiple todos in parallel
+Mojo::Promise->all(
+    fetch_todo(1),
+    fetch_todo(2),
+)->then(
+    sub {
+        # Combine the results of multiple promises
+        my ($todos, $err) = combine(flatten(@_));
+
+        # Create a matcher to handle the combined result
+        state $handler = match(
+            sub {
+                my $todos = shift;
+                say "Successfully fetched all todos:";
+                for my $todo (@$todos) {
+                    say "- Todo #$todo->{id}: $todo->{title}";
+                    say "  Completed: " . ($todo->{completed} ? "Yes" : "No");
+                }
+            },
+            sub {
+                my $error = shift;
+                say "Error fetching todos:";
+                if (ref $error eq 'HASH' && exists $error->{code}) {
+                    say "HTTP $error->{code} error for $error->{uri}";
+                } else {
+                    say "Connection error: $error";
+                }
+            }
+        );
+
+        # Process the result
+        $handler->($todos, $err);
+    }
+)->wait;
+```
+
+This pattern provides several benefits:
+
+- Clear separation between success and error cases
+- Consistent error handling across both synchronous and asynchronous code
+- Ability to combine multiple asynchronous operations and handle their results uniformly
+- More expressive and maintainable code through functional composition
+
+The combination of `flatten`, `combine`, and `match` makes it easy to work with multiple promises while maintaining clean error handling.
 
 ## Avoiding Ambiguity in Result Handling
 

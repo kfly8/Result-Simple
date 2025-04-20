@@ -14,7 +14,19 @@ BEGIN {
     # $ENV{RESULT_SIMPLE_CHECK_ENABLED} = 1;
 }
 
-use Result::Simple qw( ok err result_for unsafe_unwrap unsafe_unwrap_err chain pipeline combine combine_with_all_errors );
+use Result::Simple qw(
+    ok
+    err
+    result_for
+    chain
+    pipeline
+    combine
+    combine_with_all_errors
+    flatten
+    match
+    unsafe_unwrap
+    unsafe_unwrap_err
+);
 
 subtest 'Test `ok` and `err` functions' => sub {
     subtest '`ok` and `err` functions just return values' => sub {
@@ -290,6 +302,48 @@ subtest 'Test `combine_with_all_errors` with pipeline' => sub {
         my ($v, $e) = combine_with_all_errors( ok(3), err('foo'), ok(5), err('bar') );
         is $v, undef;
         is $e, ['foo', 'bar'];
+    };
+};
+
+subtest 'Test `flatten` function' => sub {
+    is [flatten(( [ok(1)], [ok(2)], [ok(3)] ))], [ok(1), ok(2), ok(3)];
+    is [flatten(( [ok(1)], [err('foo')], [ok(3)] ))], [ok(1), err('foo'), ok(3)];
+};
+
+subtest 'Test `match` function' => sub {
+    my $code = match(
+        sub { my $value = shift; return "Success: $value" },
+        sub { my $error = shift; return "Error: $error" },
+    );
+
+    is $code->(ok('foo')), 'Success: foo';
+    is $code->(err('bar')), 'Error: bar';
+
+    like dies { my $v = $code->(1) }, qr/`match` function arguments must be result like \(T, E\)/;
+
+    subtest 'stacktrace' => sub {
+        sub test_match_stacktrace { Carp::confess('on_success') }
+
+        my $code = match(
+            \&test_match_stacktrace,
+            sub { },
+        );
+
+        local $@;
+        eval { $code->(ok('foo')) };
+        my $error = $@;
+        my @errors = split /\n/, $error;
+
+        my $file = __FILE__;
+        my $line = __LINE__;
+
+        like $errors[0], qr!on_success at $file line @{[$line - 13]}!, 'Throw an exception at `test_match_stacktrace` function';
+        like $errors[1], qr!test_match_stacktrace\(["']foo["']\) called at .+/Result/Simple.pm!;
+        like $errors[2], qr!__MATCHER_FUNCTION__\(["']foo["'], undef\) called at $file line @{[$line - 5]}!;
+
+        note $errors[0];
+        note $errors[1];
+        note $errors[2];
     };
 };
 
