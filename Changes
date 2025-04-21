@@ -2,6 +2,10 @@ Revision history for Perl extension Result-Simple
 
 {{$NEXT}}
 
+0.06 2025-04-21T22:40:07Z
+    - [ENHANCEMENTS]
+        - feat: add flatten and match utility functions #6
+
 0.05 2025-04-19T23:07:50Z
     - Improve stactrace #4
     - [ENHANCEMENTS]
