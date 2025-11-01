@@ -28,7 +28,7 @@ jobs:
             "5.14",
           ]
         include:
-          - perl: 5.40
+          - perl: 5.42
             coverage: true
     name: Perl ${{ matrix.perl }}
     steps:
